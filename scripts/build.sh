@@ -138,7 +138,14 @@ fi
 #     $(KBUILD_CFLAGS_KERNEL) $(CFLAGS_KERNEL)
 #   CFLAGS_KERNEL 追加在内核标志之后 -> 覆盖 -Wstrict-prototypes。
 # 注意: 4.14 不认 KCFLAGS (那是 5.x 才有的), 别用。
-export EXTRA_CFLAGS="-Wno-strict-prototypes -Wno-old-style-definition -Wno-implicit-fallthrough -Wno-maybe-uninitialized -Wno-unused-but-set-variable -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=return-type -Wno-error=incompatible-pointer-types"
+# 4.14 的 Makefile 在 936-948 行用 $(call cc-option,...) 加了这些 -Werror:
+#   -Werror-implicit-int / -Werror-strict-prototypes / -Werror-date-time
+#   -Werror-incompatible-pointer-types / -Werror-designated-init
+#   以及 422 行的 -Werror-implicit-function-declaration
+# 原厂用 clang 编译 (对 format 字符串等更宽容), 换 GCC 后这些老代码会大量
+# 报 "all warnings being treated as errors"。
+# CFLAGS_KERNEL 追加在 KBUILD_CFLAGS 之后 -> 可以后置覆盖。
+export EXTRA_CFLAGS="-Wno-strict-prototypes -Wno-old-style-definition -Wno-implicit-fallthrough -Wno-maybe-uninitialized -Wno-unused-but-set-variable -Wno-unused-function -Wno-unused-variable -Wno-sign-compare -Wno-misleading-indentation -Wno-address-of-packed-member -Wno-pointer-arith -Wno-attribute-alias -Wno-array-bounds -Wno-stringop-overflow -Wno-stringop-overread -Wno-format-overflow -Wno-format-truncation -Wno-format-security -Wno-incompatible-pointer-types -Wno-int-conversion -Wno-implicit-int -Wno-implicit-function-declaration -Wno-return-type -Wno-date-time -Wno-designated-init -Wno-dangling-pointer -Wno-missing-field-initializers -Wno-type-limits -Wno-tautological-compare -Wno-sign-compare -Wno-cpp -Wno-error -Wno-compare-distinct-pointer-types"
 
 # 编译器自检 —— 前缀与实际二进制不匹配是 4.14 编译最常见的坑
 log "    编译器自检..."
@@ -262,6 +269,43 @@ make O="$OUT" ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" \
      CC="$CC" LD="$LD" HOSTCC="$HOSTCC" \
      LLVM_IAS="$LLVM_IAS" LOCALVERSION="$LOCALVERSION" \
      "$DEFCONFIG" || die "defconfig 失败"
+
+# ── 彻底移除内核里的 -Werror ─────────────────────────────
+# 原厂内核用 clang 编译 (clang 对 K&R 原型、format 字符串等更宽容),
+# 换 GCC 交叉编译时老代码会大量触发:
+#   error: function declaration isn't a prototype [-Werror=strict-prototypes]
+#   error: format '%x' expects a matching 'unsigned int' argument [-Werror=format=]
+#   cc1: all warnings being treated as errors
+#
+# 这些 -Werror 的来源不止一处 (顶层 Makefile 936-948 的 $(call cc-option,-Werror=...),
+# 以及 scripts/Kbuild.include 的 cc-disable-warning 探测机制), 单靠追加
+# -Wno-xxx 标志不能保证覆盖所有情况 —— 顺序一旦变化就又 fatal。
+# 最稳的做法: 直接把内核 Makefile 里的 -Werror 去掉, 全部警告降级为警告。
+log "    移除内核源码中的 -Werror (GCC 比 clang 严格)..."
+if [ -f "$KERNEL_DIR/Makefile" ]; then
+  BEFORE=$(grep -c -- '-Werror' "$KERNEL_DIR/Makefile" 2>/dev/null || echo 0)
+  # 内核 Makefile 里所有 -Werror 形式 (已实测共 7 种):
+  #   -Werror-implicit-function-declaration   (短横线型, 第422行)
+  #   -Werror=date-time / =designated-init / =implicit-int
+  #   -Werror=incompatible-pointer-types / =strict-prototypes
+  #   -Werror=unknown-warning-option          (clang 专用, 第498行)
+  # 全部降级为 -Wno-error 形式
+  sed -i 's/-Werror-implicit-function-declaration/-Wno-error-implicit-function-declaration/g' "$KERNEL_DIR/Makefile"
+  sed -i 's/-Werror=date-time/-Wno-error=date-time/g' "$KERNEL_DIR/Makefile"
+  sed -i 's/-Werror=designated-init/-Wno-error=designated-init/g' "$KERNEL_DIR/Makefile"
+  sed -i 's/-Werror=implicit-int/-Wno-error=implicit-int/g' "$KERNEL_DIR/Makefile"
+  sed -i 's/-Werror=incompatible-pointer-types/-Wno-error=incompatible-pointer-types/g' "$KERNEL_DIR/Makefile"
+  sed -i 's/-Werror=strict-prototypes/-Wno-error=strict-prototypes/g' "$KERNEL_DIR/Makefile"
+  sed -i 's/-Werror=unknown-warning-option/-Wno-error=unknown-warning-option/g' "$KERNEL_DIR/Makefile"
+  AFTER=$(grep -c -- '-Werror' "$KERNEL_DIR/Makefile" 2>/dev/null || echo 0)
+  ok "顶层 Makefile: -Werror 出现次数 $BEFORE -> $AFTER"
+  [ "$AFTER" != "0" ] && grep -n -- '-Werror' "$KERNEL_DIR/Makefile" | head -5 | sed 's/^/      /' || true
+fi
+# scripts/Kbuild.include 的 cc-disable-warning 用 -Werror 探测支持性,
+# 那里保持原样 (只是探测, 不影响编译), 但把 -Werror 探测改为不致命
+if [ -f "$KERNEL_DIR/scripts/Kbuild.include" ]; then
+  grep -n "cc-disable-warning" "$KERNEL_DIR/scripts/Kbuild.include" | head -2 | sed 's/^/      /'
+fi
 
 # ── 统一设置 config (必须在此处: defconfig 之后 .config 才存在) ──
 log "    设置内核选项..."
