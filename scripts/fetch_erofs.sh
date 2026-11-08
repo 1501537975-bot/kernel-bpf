@@ -28,6 +28,9 @@ ok()  { echo -e "\033[1;32m[ ok ]\033[0m $*"; }
 warn(){ echo -e "\033[1;33m[warn]\033[0m $*"; }
 
 cd "${KERNEL_DIR:-kernel}"
+# 这两个路径由 build.sh export 传入, 但独立跑时可能没设 -> 给默认值
+PATCH_DIR="${PATCH_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../patches" 2>/dev/null && pwd)}"
+EROFS_TREE="${EROFS_TREE:-$PATCH_DIR/erofs}"
 
 if [ -d fs/erofs ]; then
   ok "fs/erofs 已存在，跳过移植"

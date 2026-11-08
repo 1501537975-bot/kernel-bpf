@@ -24,6 +24,8 @@ ok()  { echo -e "\033[1;32m[ ok ]\033[0m $*"; }
 warn(){ echo -e "\033[1;33m[warn]\033[0m $*"; }
 
 cd "${KERNEL_DIR:-kernel}"
+# PATCH_DIR 由 build.sh export 传入; 独立跑时给默认值
+PATCH_DIR="${PATCH_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../patches" 2>/dev/null && pwd)}"
 
 # ── 判定树里是否已有 BPF 关键特性 ───────────────────────────
 has_sockmap_skmsg() {
@@ -96,6 +98,8 @@ fi
 ok "BPF 回合阶段完成"
 
 # ── 4. 报告当前状态 ──────────────────────────────────────────
+# BUILD_INFO 可能未定义 (由 build.sh 传入), 给个默认值避免 set -u 退出
+BUILD_INFO="${BUILD_INFO:-/dev/null}"
 echo "" >> "$BUILD_INFO" 2>/dev/null || true
 log "BPF 能力现状："
 echo "  sockmap/sk_msg : $(has_sockmap_skmsg && echo YES || echo NO)"

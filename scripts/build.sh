@@ -70,6 +70,9 @@ OUT="$(_abspath "${OUT:-$REPO_DIR/../out}")"
 SCRIPTS_DIR="$(_abspath "${SCRIPTS_DIR:-$SCRIPT_DIR}")"
 PATCH_DIR="$(_abspath "${PATCH_DIR:-$REPO_DIR/patches}")"
 EROFS_TREE="$(_abspath "${EROFS_TREE:-$PATCH_DIR/erofs}")"
+# 必须 export —— 子脚本 (fetch_erofs.sh / backport_bpf.sh / pack_anykernel.sh)
+# 靠环境变量继承这些路径, 否则 set -u 下直接 unbound variable 退出
+export SCRIPTS_DIR PATCH_DIR EROFS_TREE KERNEL_DIR OUT
 
 log_path() {
   echo "    KERNEL_DIR : $KERNEL_DIR"

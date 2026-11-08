@@ -31,6 +31,19 @@ warn(){ echo -e "\033[1;33m[warn]\033[0m $*"; }
 cd "$(dirname "$0")/.."
 ROOT="$(pwd)"
 
+# OUT 绝对化 (build.sh 会 export OUT, 但本地独立跑时也可能只给相对路径)
+_abspath() {
+  local t="$1" d b
+  case "$t" in
+    /*|[A-Za-z]:[\\/]*) realpath -m "$t" 2>/dev/null && return 0; printf '%s\n' "$t"; return 0 ;;
+  esac
+  d="$(dirname "$t")"; b="$(basename "$t")"
+  d="$(cd "$d" 2>/dev/null && pwd)" || d="$PWD/$d"
+  printf '%s\n' "${d%/}/$b"
+}
+OUT="$(_abspath "${OUT:-$ROOT/../out}")"
+OUT_ABS="$OUT"
+
 # 找内核镜像
 IMG_GZ=""
 IMG_DTB=""
