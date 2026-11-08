@@ -1,0 +1,24 @@
+# KernelSU config 片段
+# 三个分支：main（纯 KernelSU）/ ksunext（KernelSU-Next）/ ksunext-susfs（+SUSFS）
+# 参考 mt6873-dev 的 "add KernelSU" 与 "Import SukiSU-Ultra changes"
+
+CONFIG_KSU=y
+
+# KernelSU-Next 专用
+# CONFIG_KSU_SUSFS=y
+
+# SUSFS（需要额外的内核补丁，普通 4.14 不一定可用）
+# CONFIG_KSU_SUSFS_SUS_MOUNT=y
+# CONFIG_KSU_SUSFS_SUS_KSTAT=y
+# CONFIG_KSU_SUSFS_SUS_PATH=y
+# CONFIG_KSU_SUSFS_SUS_FS_OPS=y
+# CONFIG_KSU_SUSFS_SUS_NOFORK=y
+
+# 隐藏内核特征（配合 KernelSU 的 root profile 使用）
+# CONFIG_KPROBES=y
+# CONFIG_HIDE_ERROR_TABLE=y
+# CONFIG_DRM_DEBUG_DRIVER=y
+
+# SukiSU-Ultra 专用（若用 SukiSU 需开启）
+# CONFIG_KSU_SUSFS_SUS_MOUNT=y
+# CONFIG_KSU_SUSFS=y

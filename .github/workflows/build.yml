@@ -1,0 +1,154 @@
+name: Build cezanne BPF kernel (for Android 16/17)
+
+on:
+  workflow_dispatch:
+    inputs:
+      enable_erofs:
+        description: '移植 fs/erofs（Android 15+ 分区必需）'
+        type: boolean
+        default: true
+      enable_bpf:
+        description: '回合 5.10 BPF + sys_clone3（Android 16/17 必需）'
+        type: boolean
+        default: true
+      enable_uname:
+        description: '伪装 uname 为 5.4.186（放行 BPF 加载器的版本检查）'
+        type: boolean
+        default: true
+      enable_ksu:
+        description: '集成 KernelSU'
+        type: boolean
+        default: false
+      localversion:
+        description: '内核版本后缀（必须保持 -perf-00252-g2f26b5917fd6 才能加载原厂 vendor 模块）'
+        type: string
+        default: '-perf-00252-g2f26b5917fd6'
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout kernel source
+        uses: actions/checkout@v4
+        with:
+          repository: MiCode/Xiaomi_Kernel_OpenSource
+          ref: cezanne-r-oss
+          path: kernel
+          lfs: true
+          fetch-depth: 1
+
+      - name: Checkout this build repo
+        uses: actions/checkout@v4
+        with:
+          path: buildrepo
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            bc bison flex build-essential ccache curl git git-lfs gnupg gperf \
+            imagemagick lib32readline-dev lib32z1-dev libelf-dev liblz4-tool lz4 \
+            libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool \
+            squashfs-tools xsltproc zip zlib1g-dev libncurses5 \
+            dwarves python3 rsync cpio
+          # BPF 需要 pahole 生成 BTF
+          sudo apt-get install -y -qq dwarves || true
+          git lfs install
+
+      - name: Set up cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            kernel/.config
+            out
+          key: cezanne-bpf-${{ github.run_id }}
+          restore-keys: |
+            cezanne-bpf-
+
+      - name: Prepare EROFS source (pre-fetch, avoid network flakiness)
+        run: |
+          cd buildrepo
+          mkdir -p patches
+          # 从同代 MTK 树预取 erofs（4.19 才有的驱动）
+          git clone --depth 1 --filter=blob:none --sparse \
+            https://github.com/mk7x7/android_kernel_xiaomi_mt6768 /tmp/mt6768 || true
+          if [ -d /tmp/mt6768/fs/erofs ]; then
+            (cd /tmp/mt6768 && git sparse-checkout set fs/erofs include/uapi/linux/erofs_fs.h) || true
+            mkdir -p patches/erofs/fs
+            cp -r /tmp/mt6768/fs/erofs patches/erofs/fs/ 2>/dev/null || true
+            cp /tmp/mt6768/include/uapi/linux/erofs_fs.h patches/erofs/ 2>/dev/null || true
+            echo "EROFS source fetched from mt6768"
+          else
+            git clone --depth 1 --filter=blob:none --sparse \
+              https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885 /tmp/mt6885 || true
+            if [ -d /tmp/mt6885/fs/erofs ]; then
+              (cd /tmp/mt6885 && git sparse-checkout set fs/erofs include/uapi/linux/erofs_fs.h) || true
+              mkdir -p patches/erofs/fs
+              cp -r /tmp/mt6885/fs/erofs patches/erofs/fs/ 2>/dev/null || true
+              cp /tmp/mt6885/include/uapi/linux/erofs_fs.h patches/erofs/ 2>/dev/null || true
+              echo "EROFS source fetched from mt6873-dev"
+            fi
+          fi
+          ls -la patches/erofs/fs/erofs 2>/dev/null | head -20 || echo "no erofs prefetch"
+
+      - name: Build kernel
+        env:
+          enable_erofs: ${{ inputs.enable_erofs }}
+          enable_bpf: ${{ inputs.enable_bpf }}
+          enable_uname: ${{ inputs.enable_uname }}
+          enable_ksu: ${{ inputs.enable_ksu }}
+          localversion: ${{ inputs.localversion }}
+          KERNEL_DIR: kernel
+          OUT: out
+          PATCH_DIR: buildrepo/patches
+          EROFS_TREE: buildrepo/patches/erofs
+          SCRIPTS_DIR: buildrepo/scripts
+          ANYKERNEL_DIR: buildrepo/anykernel
+        run: |
+          cd buildrepo
+          chmod +x scripts/*.sh anykernel/*.sh
+          bash scripts/build.sh 2>&1 | tee build.log
+
+      - name: Verify outputs
+        run: |
+          echo "=== kernel-release ==="
+          cat kernel-release.txt
+          echo ""
+          echo "=== BUILD-INFO ==="
+          cat BUILD-INFO.txt
+          echo ""
+          echo "=== 关键校验 ==="
+          REL=$(cat kernel-release.txt)
+          EXPECT="4.14.186-perf-00252-g2f26b5917fd6"
+          if [ "$REL" != "$EXPECT" ]; then
+            echo "::error title=版本串不匹配::实际=$REL 期望=$EXPECT -- vendor .ko 会全部加载失败, 不可刷"
+            exit 1
+          else
+            echo "::notice::kernel-release 与原厂完全一致 OK"
+          fi
+          for k in CONFIG_EROFS_FS CONFIG_DEBUG_INFO_BTF CONFIG_MODVERSIONS CONFIG_FHANDLE CONFIG_BPF_SYSCALL CONFIG_FAKE_UNAME; do
+            if grep -q "^$k=y" config.txt; then
+              echo "::notice::$k=y OK"
+            else
+              echo "::warning::$k 未启用"
+            fi
+          done
+          echo ""
+          echo "=== 产物 ==="
+          ls -la artifacts/ 2>/dev/null || ls -la *.zip 2>/dev/null || echo "无 zip"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cezanne-kernel-bpf
+          path: |
+            buildrepo/artifacts/*.zip
+            buildrepo/kernel-release.txt
+            buildrepo/BUILD-INFO.txt
+            buildrepo/config.txt
+            buildrepo/System.map
+            buildrepo/build.log
+          if-no-files-found: warn
+          retention-days: 30

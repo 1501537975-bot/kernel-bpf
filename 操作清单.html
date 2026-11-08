@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>cezanne · A16/A17 内核操作清单</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--line:#e3e1da;--tx:#23231f;--tx2:#6b6a63;--tx3:#98968c;
+--ok:#3b6d11;--okbg:#eaf3de;--warn:#854f0b;--warnbg:#faeeda;--bad:#a32d2d;--badbg:#fceceb;
+--info:#185fa5;--infobg:#e6f1fb;--pur:#534ab7;--purbg:#eeedfe;--mono:"SF Mono",Consolas,"Liberation Mono",monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.65 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;padding:0 0 60px}
+.wrap{max-width:940px;margin:0 auto;padding:0 20px}
+header{background:var(--card);border-bottom:1px solid var(--line);padding:30px 0 24px;margin-bottom:24px}
+h1{margin:0 0 6px;font-size:21px;font-weight:600;letter-spacing:-.2px}
+.sub{color:var(--tx2);font-size:13.5px}
+.tags{margin-top:13px;display:flex;flex-wrap:wrap;gap:7px}
+.tag{font-size:12px;padding:3px 10px;border-radius:20px;background:var(--bg);border:1px solid var(--line);color:var(--tx2)}
+.tag.g{background:var(--okbg);border-color:#c0dd97;color:var(--ok)}
+.tag.w{background:var(--warnbg);border-color:#fac775;color:var(--warn)}
+h2{font-size:17px;font-weight:600;margin:34px 0 13px;padding-bottom:9px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px}
+h2 .n{display:inline-flex;align-items:center;justify-content:center;width:23px;height:23px;border-radius:50%;background:var(--tx);color:#fff;font-size:12px;font-weight:600;flex:none}
+h3{font-size:14.5px;font-weight:600;margin:20px 0 9px;color:var(--tx)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:17px 19px;margin-bottom:13px}
+.note{border-left:3px solid var(--info);background:var(--infobg);padding:12px 15px;border-radius:0 8px 8px 0;margin:13px 0;font-size:14px}
+.note.bad{border-left-color:var(--bad);background:var(--badbg)}
+.note.warn{border-left-color:var(--warn);background:var(--warnbg)}
+.note.ok{border-left-color:var(--ok);background:var(--okbg)}
+.note b{font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin:11px 0}
+th{text-align:left;font-weight:600;padding:9px 10px;border-bottom:1.5px solid var(--line);color:var(--tx2);font-size:12.5px}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+code{font-family:var(--mono);font-size:12.5px;background:var(--bg);padding:1.5px 5px;border-radius:4px;color:var(--info);word-break:break-all}
+pre{background:#26261f;color:#e8e6dd;border-radius:10px;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.7;margin:11px 0;position:relative}
+pre .c{color:#8f8d80}
+pre .w{color:#e0a04a}
+pre .g{color:#9ec97a}
+ul,ol{margin:10px 0;padding-left:21px}
+li{margin:6px 0}
+li::marker{color:var(--tx3)}
+.chk{display:flex;align-items:flex-start;gap:11px;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;font-size:14px}
+.chk:last-child{border-bottom:none}
+.chk input{width:17px;height:17px;margin-top:3px;flex:none;accent-color:var(--ok);cursor:pointer}
+.chk span{flex:1}
+.chk .hint{display:block;color:var(--tx3);font-size:12.5px;margin-top:2px}
+.chk.done span{color:var(--tx3);text-decoration:line-through}
+.pill{display:inline-block;font-size:11.5px;padding:2px 8px;border-radius:5px;font-weight:600;margin-right:6px;white-space:nowrap}
+.pill.g{background:var(--okbg);color:var(--ok)}
+.pill.w{background:var(--warnbg);color:var(--warn)}
+.pill.b{background:var(--badbg);color:var(--bad)}
+.pill.i{background:var(--infobg);color:var(--info)}
+.pill.p{background:var(--purbg);color:var(--pur)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+@media(max-width:700px){.grid{grid-template-columns:1fr}}
+.foot{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);color:var(--tx3);font-size:12.5px}
+.btn{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);padding:9px 20px;display:flex;gap:12px;align-items:center;justify-content:center;font-size:13px;color:var(--tx2);z-index:9}
+.btn button{font:inherit;font-size:12.5px;padding:5px 13px;border:1px solid var(--line);background:var(--bg);border-radius:6px;cursor:pointer;color:var(--tx2)}
+.btn button:hover{background:var(--card);border-color:var(--tx3)}
+.cpy{position:absolute;top:8px;right:10px;font-size:11px;color:#8f8d80;cursor:pointer;border:1px solid #46463c;padding:2px 7px;border-radius:4px;background:transparent}
+.cpy:hover{color:#e8e6dd;border-color:#8f8d80}
+@media print{.btn,.cpy{display:none}body{background:#fff}.card{break-inside:avoid}.chk.done span{text-decoration:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<h1>红米 K30 至尊纪念版 · A16/A17 内核操作清单</h1>
+<div class="sub">cezanne / M2006J10C / MT6889 天玑1000+ · 内核 4.14.186 · VNDK 31 · A-only · 无 EROFS</div>
+<div class="tags">
+<span class="tag g">13/13 patch 已验证可 apply</span>
+<span class="tag">sk_msg 0 → 118</span>
+<span class="tag">btf_vmlinux 0 → 31</span>
+<span class="tag w">刷内核不需要底包</span>
+<span class="tag w">刷内核不需要 Recovery</span>
+</div>
+</div></header>
+
+<div class="wrap">
+
+<div class="note warn"><b>这份清单要干什么</b>：编译一个带 <b>BPF backport + EROFS + uname 伪装</b> 的 4.14.186 内核，让 cezanne 能跑 Android 16/17 移植包。<br><b>当前状态</b>：手机跑着 A16 crDroid 12.12（零崩溃）。这一步是<b>为将来换 A17 移植包铺路</b>，不是立刻要刷的东西。</div>
+
+<div class="note bad"><b>三条铁律</b>：① <code>kernel-release</code> 必须等于 <code>4.14.186-perf-00252-g2f26b5917fd6</code>，不等就<b>别刷</b>；② 本机无 EROFS，<b>系统分区仍需 ext4</b>（内核支持 ≠ 分区可用）；③ MT6889 变砖极难救回，<b>刷之前先备份 boot</b>。</div>
+
+<h2><span class="n">1</span>准备（不用下底包）</h2>
+<div class="card">
+<label class="chk"><input type="checkbox"><span><b>platform-tools</b> 34.0.4<span class="hint">11-05 清理时删了，需重下。https://dl.google.com/android/repository/platform-tools_r34.0.4-windows.zip</span></span></label>
+<label class="chk"><input type="checkbox"><span><b>把 kernel-bpf/ 仓库 push 到你的 GitHub</b><span class="hint">仓库路径：<code>C:\Users\纪\WorkBuddy\2026-11-05-00-02-58\kernel-bpf\</code></span></span></label>
+<pre><span class="c"># 在仓库目录下</span>
+cd kernel-bpf
+git init
+git add .
+git commit -m <span class="w">"feat: cezanne BPF kernel build for Android 16/17"</span>
+git remote add origin https://github.com/<span class="w">你的用户名</span>/kernel-bpf.git
+git push -u origin main</pre>
+<div class="note ok"><b>不需要下载的东西</b>：底包 V12.5.11.0（4.76GB）、Recovery、任何 ROM。<b>刷内核只动 boot 分区</b>，不碰 vendor/data/super。</div>
+</div>
+
+<h2><span class="n">2</span>触发 Actions 编译</h2>
+<div class="card">
+<ol>
+<li>GitHub 打开你的 <code>kernel-bpf</code> 仓库 → <b>Actions</b> 标签</li>
+<li>选 <code>Build cezanne BPF kernel (for Android 16/17)</code></li>
+<li>点右侧 <b>Run workflow</b></li>
+<li>参数按下面填</li>
+</ol>
+<table>
+<thead><tr><th style="width:150px">参数</th><th style="width:80px">填</th><th>为什么</th></tr></thead>
+<tbody>
+<tr><td><code>enable_erofs</code></td><td><span class="pill g">✔ 勾</span></td><td>A15+ 分区是 erofs，没驱动直接卡开机</td></tr>
+<tr><td><code>enable_bpf</code></td><td><span class="pill g">✔ 勾</span></td><td><b>核心</b>。回合 5.10 的 sk_msg / BTF / arraymap 修复</td></tr>
+<tr><td><code>enable_uname</code></td><td><span class="pill g">✔ 勾</span></td><td>放行 BPF 加载器对内核版本的检查</td></tr>
+<tr><td><code>enable_ksu</code></td><td><span class="pill w">✘ 不勾</span></td><td>第一次先验证能不能开机，变量越少越好</td></tr>
+<tr><td><code>localversion</code></td><td><code>-perf-00252-g2f26b5917fd6</code></td><td><b>不要改</b>，改了原厂 vendor 的 10 个 .ko 全加载失败</td></tr>
+</tbody></table>
+<p style="font-size:13.5px;color:var(--tx2);margin-bottom:0">跑完（30~60 分钟）在运行页底部 <b>Artifacts</b> 下载 <code>cezanne-kernel-bpf</code>。</p>
+</div>
+
+<h2><span class="n">3</span>拿到包后 · 三项自检</h2>
+<div class="card">
+<div class="note bad"><b>这一关过不了就不要刷。</b></div>
+<label class="chk"><input type="checkbox"><span><b>kernel-release.txt</b> 内容 == <code>4.14.186-perf-00252-g2f26b5917fd6</code><span class="hint">不一致 = 原厂 10 个 .ko 全部 "disagrees about version of symbol" = 相机/蓝牙/GPS/热管理全废</span></span></label>
+<label class="chk"><input type="checkbox"><span><b>config.txt</b> 里 <code>CONFIG_EROFS_FS=y</code><span class="hint">grep -E "CONFIG_EROFS_FS=y" config.txt</span></span></label>
+<label class="chk"><input type="checkbox"><span><b>config.txt</b> 里 <code>CONFIG_DEBUG_INFO_BTF=y</code><span class="hint">grep -E "CONFIG_DEBUG_INFO_BTF=y" config.txt</span></span></label>
+<pre><span class="c"># 一键检查</span>
+cat kernel-release.txt
+grep -E <span class="w">"CONFIG_(EROFS_FS|DEBUG_INFO_BTF|BPF_SYSCALL|CGROUP_FREEZER)=y"</span> config.txt
+cat BUILD-INFO.txt</pre>
+<p style="font-size:13.5px;margin-bottom:0">三项全过 → 进下一步。有任何一项不过 → <b>把 build.log 贴给我</b>，我帮你看。</p>
+</div>
+
+<h2><span class="n">4</span>备份（刷之前必做）</h2>
+<div class="card">
+<div class="note warn">MT6889 在 Mi Flash / SP Flash Tool 下兼容性很差，变砖后极难救回。<b>这一步不能省。</b></div>
+<pre><span class="c"># 1. 进 fastboot</span>
+adb reboot bootloader
+
+<span class="c"># 2. 备份当前 boot（这是你的救命稻草）</span>
+fastboot fetch boot.img boot_backup.img
+<span class="c"># 或</span>
+fastboot flash boot boot_backup.img   <span class="c"># 校验写入成功</span>
+
+<span class="c"># 3. 顺便看看当前内核版本</span>
+fastboot getvar product
+fastboot getvar unlocked
+fastboot getvar anti</pre>
+<label class="chk"><input type="checkbox"><span>boot_backup.img 已保存到本地<span class="hint">放在和刷机包同一个文件夹，别放临时目录</span></span></label>
+</div>
+
+<h2><span class="n">5</span>刷入（两种方式，选一种）</h2>
+<div class="card">
+<h3 style="margin-top:0">方式 A · fastboot 直刷（推荐，不用 Recovery）</h3>
+<p style="font-size:13.5px">AnyKernel3 包本质是带刷机脚本的 zip，直接刷 boot 分区即可。</p>
+<pre><span class="c"># 解压 anykernel3.zip，取出 Image.gz</span>
+<span class="c"># 然后直接刷（需要自己组 boot.img）</span>
+fastboot flash boot boot_new.img
+
+<span class="c"># 或者用 AnyKernel3 包 + 自定义 recovery</span>
+fastboot flash recovery recovery.img
+fastboot reboot recovery
+<span class="c"># 进 recovery → Install → 选 *-gz-anykernel3.zip</span></pre>
+
+<h3>方式 B · Recovery 卡刷（更稳）</h3>
+<p style="font-size:13.5px;margin-bottom:0">如果你手上有能用的 Recovery（下列任一），直接在里面 Install 刷 <code>*-gz-anykernel3.zip</code>：</p>
+<table>
+<thead><tr><th>Recovery</th><th style="width:80px">大小</th><th>链接</th></tr></thead>
+<tbody>
+<tr><td>TWRP 3.4.2B (LR.Team)</td><td>35.68 MB</td><td><code>mifirm.net/downloadtwrp/189</code></td></tr>
+<tr><td>TWRP (通用)</td><td>42.17 MB</td><td><code>mifirm.net/downloadtwrp/166</code></td></tr>
+<tr><td>PitchBlack Recovery</td><td>42.91 MB</td><td><code>mifirm.net/downloadtwrp/177</code></td></tr>
+</tbody></table>
+<div class="note warn"><b>后续刷 A17 移植包时</b>，需要一个<b>能解密 data 的 Recovery</b>（否则 keystore2 加载失败，A17 直接开不了机）。酷安上的 <b>解密版 OrangeFox</b> 明确支持「MIUI14 Android 13 解密 + Android12 MIUI13/14 官方ROM和类原生解密」。</div>
+</div>
+
+<h2><span class="n">6</span>验证</h2>
+<div class="card">
+<label class="chk"><input type="checkbox"><span>开机成功，进桌面<span class="hint">内核换了但系统没变（还是 A16 crDroid），应该和之前一样稳</span></span></label>
+<label class="chk"><input type="checkbox"><span><code>adb shell uname -r</code> 看到 <code>5.4.186-perf-00252-g2f26b5917fd6</code><span class="hint">说明 uname 伪装生效（实际仍是 4.14）</span></span></label>
+<label class="chk"><input type="checkbox"><span><code>adb shell getprop ro.boot.flash.locked</code> = 0<span class="hint">BL 仍是解锁状态</span></span></label>
+<label class="chk"><input type="checkbox"><span>相机 / 蓝牙 / GPS / 通话 全部正常<span class="hint"><b>这是 kernel-release 对齐的直接检验</b>。这 4 个都靠原厂 vendor 的 .ko，只要有一个不рабо，说明符号 CRC 没对上 → <b>立刻回滚</b></span></span></label>
+<label class="chk"><input type="checkbox"><span>WiFi 能连<b>且能上网</b><span class="hint">BPF 是否修好的唯一判据</span></span></label>
+<label class="chk"><input type="checkbox"><span>跑 30 分钟，<code>dumpsys dropbox</code> 无 system_app_crash / ANR</span></span></label>
+</div>
+
+<h2><span class="n">7</span>回滚（任何一步不对就用这个）</h2>
+<div class="card">
+<pre><span class="c"># 进 fastboot</span>
+adb reboot bootloader
+<span class="c"># 刷回原厂 boot</span>
+fastboot flash boot boot_backup.img
+<span class="c"># 重启</span>
+fastboot reboot</pre>
+<p style="font-size:13.5px;margin-bottom:0">30 秒内回到原状态。<b>这就是为什么第 4 步的备份不能省。</b></p>
+</div>
+
+<h2><span class="n">8</span>后续：换 A17 移植包（等内核跑稳再说）</h2>
+<div class="card">
+<table>
+<thead><tr><th style="width:120px">阶段</th><th>要做什么</th></tr></thead>
+<tbody>
+<tr><td>① 底包</td><td>下 MIUI <b>V12.5.11.0.RJNCNXM</b>（约 4.76GB）—— 既是刷 ROM 必需，也是最终救砖包</td></tr>
+<tr><td>② Recovery</td><td><b>解密版 OrangeFox</b>（能解 data，否则 keystore2 失败）</td></tr>
+<tr><td>③ ROM 包</td><td>HyperOS4 A17（OS4.0.0.10，源小米 17T Pro）—— <b>酷安积分墙后，可能拿不到</b></td></tr>
+<tr><td>③′ 备选</td><td><b>ColorOS 14</b>（Mystic <code>Coloros-ossi-14-…</code>，SourceForge 免费公开）。A14 门槛正好 4.14 达标，<b>不需要新内核</b>，只需换 <code>com.android.tethering.apex</code></td></tr>
+<tr><td>④ 刷</td><td>底包 → 四清 + 格式化 data → 刷 ROM → 刷内核</td></tr>
+</tbody></table>
+<div class="note"><b>关于 QPR 版本</b>：社区结论是「5.4 的 bpf 也只能开 qpr0」→ <b>A16/A17 只能 QPR0，QPR2 不行</b>。这也是为什么 Ty_1224 用的是 OS4.0.0.10（QPR0 系）。</div>
+<div class="note ok"><b>ColorOS 14 路线反而更省</b>：不需要新内核（4.14 刚好达标），Mystic 的包在 SourceForge 完全免费公开。代价是 OPPO 私有服务/相机/GPU 调校对不上 MTK，成功率低于 HyperOS（同血脉优势）。</div>
+</div>
+
+<h2><span class="n">9</span>已知坑（都是这次调研踩出来的）</h2>
+<div class="card">
+<table>
+<thead><tr><th style="width:190px">坑</th><th>实情</th></tr></thead>
+<tbody>
+<tr><td>酷安「查看链接」</td><td>不是作者收费，是<b>酷安积分/等级墙</b>。未登录连回复都读不到 → A17 移植包可能弄不到</td></tr>
+<tr><td>FiimeROM 的 cezanne 包</td><td>SEO 拼凑，<code>FindROM/102345.html</code> 实测 <b>404</b>，另两个编号是编造连号</td></tr>
+<tr><td>ROM基地「澎湃OS4 安卓16 大小1」</td><td>引流假条目</td></tr>
+<tr><td><code>cezanne-aosp_a14</code> 内核包</td><td>是 4.14 内核，<b>不解锁 A15/A16</b>，别误读</td></tr>
+<tr><td>Windows 编译内核</td><td>内核树有 <code>aux.c</code>/<code>aux.h</code> 大小写冲突 → <b>Windows 上无法全树 checkout</b>，必须用 Actions（Linux）</td></tr>
+<tr><td>mt6768 的分支</td><td>不是 main，是 <code>skyron</code></td></tr>
+<tr><td>FOD 屏下指纹</td><td>GSI 架构缺口（vendor HAL 回调为 null），<b>换任何内核都修不好</b></td></tr>
+</tbody></table>
+</div>
+
+<h2><span class="n">10</span>社区资源速查</h2>
+<div class="card">
+<table>
+<thead><tr><th style="width:130px">人 / 源</th><th style="width:90px">酷安 uid</th><th>能提供什么</th></tr></thead>
+<tbody>
+<tr><td><b>月下斩过往</b></td><td>34331734</td><td>内核核心作者（Xiaomi Custom Kernel），4.14.357 树里有全部 BPF 补丁</td></tr>
+<tr><td><b>tiffanyy</b></td><td>29580310</td><td>BPF 补丁集作者，system patch bpf 方案（<code>tethering.apex</code> 替换）</td></tr>
+<tr><td><b>Ty_1224</b></td><td>12024762</td><td>HyperOS4 A17 移植包作者（OS4.0.0.10，内置 ksu）</td></tr>
+<tr><td><b>WIMOS</b></td><td>28814114</td><td>cezanne 的 HyperOS / MIUI14 尝鲜包（A13 档）</td></tr>
+<tr><td><b>弗知</b></td><td>31480808</td><td>K30Pro 的 OS4 A17 包 + Recovery</td></tr>
+<tr><td>mytiantian_是天天吖</td><td>4430874</td><td>K60 Ultra 的 <b>开源 A17 设备树</b>（天玑8000 系，MTK 移植参考）</td></tr>
+<tr><td>专项话题</td><td>—</td><td>id 2121「Redmi K30至尊纪念版」41441 关注 / 12604 评论</td></tr>
+</tbody></table>
+<p style="font-size:13.5px;margin-bottom:0"><b>开源免费来源</b>：<code>mt6873-dev/android_kernel_xiaomi_mt6885</code>（cgroup-v2 分支，含 BPF+EROFS+fake uname）· <code>mk7x7/android_kernel_xiaomi_mt6768</code>（分支 <b>skyron</b>，本仓库 patch 来源）· <code>origin-oem-ports/portingessential</code>（UKL / MIO / TFSS / apex / init.gsi.rc）</p>
+</div>
+
+<div class="foot">红米 K30 至尊纪念版 · A16/A17 内核操作清单 · 2026-11-08<br>
+patch 已验证：13/13 git apply --check 通过（对原厂 MiCode cezanne-r-oss 4.14.186）。<b>内核未在真机验证</b>——刷机有风险，MT6889 变砖极难救回，务必先备份 boot。</div>
+
+</div>
+
+<div class="btn">
+<span id="cnt">0 / 0 已完成</span>
+<button onclick="clearAll()">重置进度</button>
+<button onclick="window.print()">打印</button>
+</div>
+
+<script>
+(function(){
+ var boxes=[].slice.call(document.querySelectorAll('.chk input'));
+ var c=document.getElementById('cnt');
+ function key(i){return 'bpfchk'+i;}
+ boxes.forEach(function(b,i){
+   try{ if(localStorage.getItem(key(i))==='1'){b.checked=true;b.closest('.chk').classList.add('done');} }catch(e){}
+   b.addEventListener('change',function(){
+     try{ localStorage.setItem(key(i), b.checked?'1':'0'); }catch(e){}
+     b.closest('.chk').classList.toggle('done',b.checked);
+     upd();
+   });
+ });
+ function upd(){ var n=boxes.filter(function(b){return b.checked;}).length; c.textContent=n+' / '+boxes.length+' 已完成'; }
+ function clearAll(){ boxes.forEach(function(b,i){ b.checked=false; try{localStorage.removeItem(key(i));}catch(e){} b.closest('.chk').classList.remove('done'); }); upd(); }
+ upd();
+
+ // 复制按钮
+ document.querySelectorAll('pre').forEach(function(p){
+   var btn=document.createElement('button');
+   btn.className='cpy'; btn.textContent='复制';
+   btn.onclick=function(){
+     var t=p.innerText.replace(/\n\$/,'');
+     if(navigator.clipboard){ navigator.clipboard.writeText(t); }
+     btn.textContent='已复制'; setTimeout(function(){btn.textContent='复制';},1600);
+   };
+   p.appendChild(btn);
+ });
+})();
+</script>
+</body>
+</html>

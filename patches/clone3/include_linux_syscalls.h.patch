@@ -1,0 +1,40 @@
+From: cezanne-clone3 <auto@local>
+Subject: [PATCH] clone3 backport: include/linux/syscalls.h
+
+回合自同代 MTK 树（mt6768 / mt6885）
+目标：Android 17 zygote 需要 sys_clone3
+说明：系统调用表声明
+
+---
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -426,7 +426,7 @@
+ asmlinkage long sys_umount(char __user *name, int flags);
+ asmlinkage long sys_oldumount(char __user *name);
+ asmlinkage long sys_truncate(const char __user *path, long length);
+-asmlinkage long sys_ftruncate(unsigned int fd, unsigned long length);
++asmlinkage long sys_ftruncate(unsigned int fd, off_t length);
+ asmlinkage long sys_stat(const char __user *filename,
+ 			struct __old_kernel_stat __user *statbuf);
+ asmlinkage long sys_statfs(const char __user * path,
+@@ -553,6 +553,8 @@
+ asmlinkage long sys_open(const char __user *filename,
+ 				int flags, umode_t mode);
+ asmlinkage long sys_close(unsigned int fd);
++asmlinkage long sys_close_range(unsigned int fd, unsigned int max_fd,
++				unsigned int flags);
+ asmlinkage long sys_access(const char __user *filename, int mode);
+ asmlinkage long sys_vhangup(void);
+ asmlinkage long sys_chown(const char __user *filename,
+@@ -676,6 +678,11 @@
+ 				int maxevents, int timeout,
+ 				const sigset_t __user *sigmask,
+ 				size_t sigsetsize);
++asmlinkage long sys_epoll_pwait2(int epfd, struct epoll_event __user *events,
++				 int maxevents,
++				 const struct __kernel_timespec __user *timeout,
++				 const sigset_t __user *sigmask,
++				 size_t sigsetsize);
+ asmlinkage long sys_gethostname(char __user *name, int len);
+ asmlinkage long sys_sethostname(char __user *name, int len);
+ asmlinkage long sys_setdomainname(char __user *name, int len);

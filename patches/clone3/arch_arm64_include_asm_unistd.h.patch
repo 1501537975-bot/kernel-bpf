@@ -1,0 +1,19 @@
+From: cezanne-clone3 <auto@local>
+Subject: [PATCH] clone3 backport: arch/arm64/include/asm/unistd.h
+
+回合自同代 MTK 树（mt6768 / mt6885）
+目标：Android 17 zygote 需要 sys_clone3
+说明：arm64 syscall 表
+
+---
+--- a/arch/arm64/include/asm/unistd.h
++++ b/arch/arm64/include/asm/unistd.h
+@@ -43,7 +43,7 @@
+ #define __ARM_NR_compat_cacheflush	(__ARM_NR_COMPAT_BASE+2)
+ #define __ARM_NR_compat_set_tls		(__ARM_NR_COMPAT_BASE+5)
+ 
+-#define __NR_compat_syscalls		435
++#define __NR_compat_syscalls		442
+ #endif
+ 
+ #define __ARCH_WANT_SYS_CLONE

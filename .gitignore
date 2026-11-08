@@ -1,0 +1,32 @@
+# 编译产物
+out/
+*.o
+*.ko
+*.cmd
+.tmp_versions/
+include/generated/
+include/config/
+include/linux/compile.h
+include/linux/kallsyms.h
+include/linux/ksyms.h
+Module.symvers
+modules.order
+
+# AnyKernel3 打包中间产物 (源码在 scripts/pack_anykernel.sh, 产物在 build/ 与 artifacts/)
+build/
+artifacts/
+anykernel/
+
+# 补丁生成临时目录
+patches/*/.tmp/
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+.DS_Store
+build.log
