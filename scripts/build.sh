@@ -298,7 +298,11 @@ if [ -f "$KERNEL_DIR/Makefile" ]; then
   #   -Werror=incompatible-pointer-types / =strict-prototypes
   #   -Werror=unknown-warning-option          (clang 专用, 第498行)
   # 全部降级为 -Wno-error 形式
-  sed -i 's/-Werror-implicit-function-declaration/-Wno-error-implicit-function-declaration/g' "$KERNEL_DIR/Makefile"
+  # 注意: 短横线型的 -Werror-implicit-function-declaration 不能改成
+  # "-Wno-error-implicit-function-declaration" —— GCC 不认这个选项名, 会报
+  #   error: unrecognized command-line option '-Wno-error-implicit-function-declaration'
+  # 正确写法是直接关掉该警告: -Wno-implicit-function-declaration
+  sed -i 's/-Werror-implicit-function-declaration/-Wno-implicit-function-declaration/g' "$KERNEL_DIR/Makefile"
   sed -i 's/-Werror=date-time/-Wno-error=date-time/g' "$KERNEL_DIR/Makefile"
   sed -i 's/-Werror=designated-init/-Wno-error=designated-init/g' "$KERNEL_DIR/Makefile"
   sed -i 's/-Werror=implicit-int/-Wno-error=implicit-int/g' "$KERNEL_DIR/Makefile"
