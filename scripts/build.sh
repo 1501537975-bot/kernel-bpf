@@ -22,8 +22,44 @@ ENABLE_UNAME="${enable_uname:-yes}"
 ENABLE_KSU="${enable_ksu:-no}"
 LOCALVERSION="${localversion:--perf-00252-g2f26b5917fd6}"
 
-KERNEL_DIR="${KERNEL_DIR:-kernel}"
-OUT="${OUT:-out}"
+# ── 路径统一绝对化 ──────────────────────────────────────
+# 本脚本会在多个目录间 cd (buildrepo -> kernel -> buildrepo),
+# 相对路径会在 cd 之后失效。所有外部传入的路径在此一次性转成绝对路径。
+_abspath() {
+  local t="$1" d b
+  case "$t" in
+    /*|[A-Za-z]:[\\/]*)
+      # 已是绝对路径 —— 用 realpath 归一化 (去掉 .. 与重复斜杠)
+      if command -v realpath >/dev/null 2>&1; then
+        realpath -m "$t" 2>/dev/null && return 0
+      fi
+      printf '%s\n' "$t"
+      return 0
+      ;;
+  esac
+  d="$(dirname "$t")"; b="$(basename "$t")"
+  # 目标可能还不存在 (如 out/), 所以只 realpath 父目录
+  d="$(cd "$d" 2>/dev/null && pwd)" || d="$PWD/$d"
+  printf '%s\n' "${d%/}/$b"
+}
+
+# 脚本自身所在目录 = <repo>/scripts
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+KERNEL_DIR="$(_abspath "${KERNEL_DIR:-$REPO_DIR/../kernel}")"
+OUT="$(_abspath "${OUT:-$REPO_DIR/../out}")"
+SCRIPTS_DIR="${SCRIPTS_DIR:-$SCRIPT_DIR}"
+PATCH_DIR="$(_abspath "${PATCH_DIR:-$REPO_DIR/patches}")"
+EROFS_TREE="$(_abspath "${EROFS_TREE:-$PATCH_DIR/erofs}")"
+
+log_path() {
+  echo "    KERNEL_DIR : $KERNEL_DIR"
+  echo "    OUT        : $OUT"
+  echo "    SCRIPTS_DIR: $SCRIPTS_DIR"
+  echo "    PATCH_DIR  : $PATCH_DIR"
+  echo "    EROFS_TREE : $EROFS_TREE"
+}
 export KBUILD_BUILD_TIMESTAMP="${KBUILD_BUILD_TIMESTAMP:-Sat Nov  8 00:00:00 UTC 2026}"
 
 # ★ 原厂模块 vermagic 必须精确匹配这个字符串 (实测自 /vendor/lib/modules/*.ko)
@@ -37,6 +73,7 @@ die()  { echo -e "\033[1;31m[FAIL]\033[0m $*" >&2; exit 1; }
 log "==== cezanne BPF 内核构建 ===="
 log "erofs=$ENABLE_EROFS  bpf=$ENABLE_BPF  uname=$ENABLE_UNAME  ksu=$ENABLE_KSU"
 log "localversion=$LOCALVERSION"
+log_path
 
 # ─────────────────────────────────────────────────────────────
 # 1. 交叉编译工具链
@@ -109,7 +146,7 @@ fi
 # 2. 源码准备
 # ─────────────────────────────────────────────────────────────
 log "[2/7] 准备内核源码"
-cd "$KERNEL_DIR"
+# 注意: 不在这里 cd, 各子脚本自己 cd 进内核树 (见 backport_bpf.sh / fetch_erofs.sh)
 git config --global --add safe.directory "$KERNEL_DIR" 2>/dev/null || true
 
 # ─────────────────────────────────────────────────────────────
@@ -194,9 +231,8 @@ cd "$KERNEL_DIR"
 # 绝对化 OUT, 避免 cd 之后相对路径错位
 # (make O=../$OUT 输出到 buildrepo/out, 而后续 scripts/config --file $OUT/.config
 #  必须在同一位置, 否则会写到 kernel/out/.config 而 config 根本不生效)
-OUT_ABS="$(cd .. && pwd)/$OUT"
-mkdir -p "$OUT_ABS"
-log "    输出目录: $OUT_ABS"
+mkdir -p "$OUT"
+OUT_ABS="$OUT"
 
 make mrproper || true
 
@@ -209,7 +245,7 @@ done
 [ -n "$DEFCONFIG" ] || die "在 arch/arm64/configs/ 下找不到 cezanne 的 defconfig (实际内容: $(ls arch/arm64/configs/ 2>/dev/null | tr '\n' ' '))"
 log "    使用 defconfig: $DEFCONFIG"
 
-make O=../$OUT ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" \
+make O="$OUT" ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" \
      CC="$CC" LD="$LD" HOSTCC="$HOSTCC" \
      LLVM_IAS="$LLVM_IAS" LOCALVERSION="$LOCALVERSION" \
      "$DEFCONFIG" || die "defconfig 失败"
@@ -224,7 +260,7 @@ scripts/config --file "$OUT_ABS/.config" --enable CONFIG_FHANDLE
 scripts/config --file "$OUT_ABS/.config" --enable CONFIG_INDIRECT_FD
 ok "MODVERSIONS / FHANDLE / INDIRECT_FD 已开启"
 
-make O=../$OUT ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" \
+make O="$OUT" ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" \
      CC="$CC" LD="$LD" HOSTCC="$HOSTCC" \
      LLVM_IAS="$LLVM_IAS" LOCALVERSION="$LOCALVERSION" \
      -j"$(nproc)" Image.gz-dtb Image.gz || die "编译失败"
@@ -253,12 +289,12 @@ fi
 ok "已固定 LOCALVERSION=$LOCALVERSION 且关闭 LOCALVERSION_AUTO"
 
 # 重编一次让版本串生效 (增量, 很快)
-make O=../$OUT ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" \
+make O="$OUT" ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" \
      CC="$CC" LD="$LD" HOSTCC="$HOSTCC" \
      LLVM_IAS="$LLVM_IAS" LOCALVERSION="$LOCALVERSION" \
      -j"$(nproc)" Image.gz-dtb Image.gz || die "重编失败 (版本串对齐)"
 
-cd ..
+cd "$REPO_DIR"
 ok "编译完成"
 
 # ─────────────────────────────────────────────────────────────
