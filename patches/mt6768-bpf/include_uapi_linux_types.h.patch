@@ -1,0 +1,22 @@
+From: cezanne-bpf-backport <auto@local>
+Subject: [PATCH] BPF backport: include/uapi/linux/types.h
+
+回合自同代 MTK 树 mk7x7/android_kernel_xiaomi_mt6768@skyron
+目标: 让 4.14 具备 Android 16/17 所需的 BPF 能力 (sk_msg / BTF / arraymap)
+操作: 修改
+
+---
+--- a/include/uapi/linux/types.h
++++ b/include/uapi/linux/types.h
+@@ -49,5 +49,11 @@
+ #define __aligned_be64 __be64 __attribute__((aligned(8)))
+ #define __aligned_le64 __le64 __attribute__((aligned(8)))
+ 
++#ifdef __CHECK_POLL
++typedef unsigned __bitwise __poll_t;
++#else
++typedef unsigned __poll_t;
++#endif
++
+ #endif /*  __ASSEMBLY__ */
+ #endif /* _UAPI_LINUX_TYPES_H */
