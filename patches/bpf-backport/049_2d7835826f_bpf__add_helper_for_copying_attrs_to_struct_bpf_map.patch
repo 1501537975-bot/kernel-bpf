@@ -1,0 +1,157 @@
+From: 2d7835826fb72f29798ca542adb0f7ddae9cd3cf
+Subject: [PATCH] bpf: add helper for copying attrs to struct bpf_map
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2018-01-12T04:29:06Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/2d7835826fb72f29798ca542adb0f7ddae9cd3cf
+
+---
+diff --git a/include/linux/bpf.h b/include/linux/bpf.h
+--- a/include/linux/bpf.h
++++ b/include/linux/bpf.h
+@@ -376,6 +376,7 @@ void bpf_map_put(struct bpf_map *map);
+ int bpf_map_precharge_memlock(u32 pages);
+ void *bpf_map_area_alloc(size_t size, int numa_node);
+ void bpf_map_area_free(void *base);
++void bpf_map_init_from_attr(struct bpf_map *map, union bpf_attr *attr);
+ 
+ extern int sysctl_unprivileged_bpf_disabled;
+ diff --git a/kernel/bpf/cpumap.c b/kernel/bpf/cpumap.c
+--- a/kernel/bpf/cpumap.c
++++ b/kernel/bpf/cpumap.c
+@@ -88,13 +88,7 @@ static struct bpf_map *cpu_map_alloc(union bpf_attr *attr)
+ 	if (!cmap)
+ 		return ERR_PTR(-ENOMEM);
+ 
+-	/* mandatory map attributes */
+-	cmap->map.map_type = attr->map_type;
+-	cmap->map.key_size = attr->key_size;
+-	cmap->map.value_size = attr->value_size;
+-	cmap->map.max_entries = attr->max_entries;
+-	cmap->map.map_flags = attr->map_flags;
+-	cmap->map.numa_node = bpf_map_attr_numa_node(attr);
++	bpf_map_init_from_attr(&cmap->map, attr);
+ 
+ 	/* Pre-limit array size based on NR_CPUS, not final CPU check */
+ 	if (cmap->map.max_entries > NR_CPUS) {diff --git a/kernel/bpf/devmap.c b/kernel/bpf/devmap.c
+--- a/kernel/bpf/devmap.c
++++ b/kernel/bpf/devmap.c
+@@ -124,13 +124,7 @@ static struct bpf_map *dev_map_alloc(union bpf_attr *attr)
+ 	if (!dtab)
+ 		return ERR_PTR(-ENOMEM);
+ 
+-	/* mandatory map attributes */
+-	dtab->map.map_type = attr->map_type;
+-	dtab->map.key_size = attr->key_size;
+-	dtab->map.value_size = attr->value_size;
+-	dtab->map.max_entries = attr->max_entries;
+-	dtab->map.map_flags = attr->map_flags;
+-	dtab->map.numa_node = bpf_map_attr_numa_node(attr);
++	bpf_map_init_from_attr(&dtab->map, attr);
+ 
+ 	/* make sure page count doesn't overflow */
+ 	cost = (u64) dtab->map.max_entries * sizeof(struct bpf_dtab_netdev *);diff --git a/kernel/bpf/hashtab.c b/kernel/bpf/hashtab.c
+--- a/kernel/bpf/hashtab.c
++++ b/kernel/bpf/hashtab.c
+@@ -238,7 +238,6 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
+ 	 */
+ 	bool percpu_lru = (attr->map_flags & BPF_F_NO_COMMON_LRU);
+ 	bool prealloc = !(attr->map_flags & BPF_F_NO_PREALLOC);
+-	int numa_node = bpf_map_attr_numa_node(attr);
+ 	struct bpf_htab *htab;
+ 	int err, i;
+ 	u64 cost;
+@@ -264,20 +263,11 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
+ 	if (lru && !prealloc)
+ 		return ERR_PTR(-ENOTSUPP);
+ 
+-	if (numa_node != NUMA_NO_NODE && (percpu || percpu_lru))
+-		return ERR_PTR(-EINVAL);
+-
+ 	htab = kzalloc(sizeof(*htab), GFP_USER);
+ 	if (!htab)
+ 		return ERR_PTR(-ENOMEM);
+ 
+-	/* mandatory map attributes */
+-	htab->map.map_type = attr->map_type;
+-	htab->map.key_size = attr->key_size;
+-	htab->map.value_size = attr->value_size;
+-	htab->map.max_entries = attr->max_entries;
+-	htab->map.map_flags = attr->map_flags;
+-	htab->map.numa_node = numa_node;
++	bpf_map_init_from_attr(&htab->map, attr);
+ 
+ 	/* check sanity of attributes.
+ 	 * value_size == 0 may be allowed in the future to use map as a setdiff --git a/kernel/bpf/lpm_trie.c b/kernel/bpf/lpm_trie.c
+--- a/kernel/bpf/lpm_trie.c
++++ b/kernel/bpf/lpm_trie.c
+@@ -435,13 +435,7 @@ static struct bpf_map *trie_alloc(union bpf_attr *attr)
+ 	if (!trie)
+ 		return ERR_PTR(-ENOMEM);
+ 
+-	/* copy mandatory map attributes */
+-	trie->map.map_type = attr->map_type;
+-	trie->map.key_size = attr->key_size;
+-	trie->map.value_size = attr->value_size;
+-	trie->map.max_entries = attr->max_entries;
+-	trie->map.map_flags = attr->map_flags;
+-	trie->map.numa_node = bpf_map_attr_numa_node(attr);
++	bpf_map_init_from_attr(&trie->map, attr);
+ 	trie->data_size = attr->key_size -
+ 			  offsetof(struct bpf_lpm_trie_key, data);
+ 	trie->max_prefixlen = trie->data_size * 8;diff --git a/kernel/bpf/sockmap.c b/kernel/bpf/sockmap.c
+--- a/kernel/bpf/sockmap.c
++++ b/kernel/bpf/sockmap.c
+@@ -1205,13 +1205,7 @@ static struct bpf_map *sock_map_alloc(union bpf_attr *attr)
+ 	if (!stab)
+ 		return ERR_PTR(-ENOMEM);
+ 
+-	/* mandatory map attributes */
+-	stab->map.map_type = attr->map_type;
+-	stab->map.key_size = attr->key_size;
+-	stab->map.value_size = attr->value_size;
+-	stab->map.max_entries = attr->max_entries;
+-	stab->map.map_flags = attr->map_flags;
+-	stab->map.numa_node = bpf_map_attr_numa_node(attr);
++	bpf_map_init_from_attr(&stab->map, attr);
+ 
+ 	/* make sure page count doesn't overflow */
+ 	cost = (u64) stab->map.max_entries * sizeof(struct sock *);diff --git a/kernel/bpf/stackmap.c b/kernel/bpf/stackmap.c
+--- a/kernel/bpf/stackmap.c
++++ b/kernel/bpf/stackmap.c
+@@ -91,14 +91,10 @@ static struct bpf_map *stack_map_alloc(union bpf_attr *attr)
+ 	if (cost >= U32_MAX - PAGE_SIZE)
+ 		goto free_smap;
+ 
+-	smap->map.map_type = attr->map_type;
+-	smap->map.key_size = attr->key_size;
++	bpf_map_init_from_attr(&smap->map, attr);
+ 	smap->map.value_size = value_size;
+-	smap->map.max_entries = attr->max_entries;
+-	smap->map.map_flags = attr->map_flags;
+ 	smap->n_buckets = n_buckets;
+ 	smap->map.pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
+-	smap->map.numa_node = bpf_map_attr_numa_node(attr);
+ 
+ 	err = bpf_map_precharge_memlock(smap->map.pages);
+ 	if (err)diff --git a/kernel/bpf/syscall.c b/kernel/bpf/syscall.c
+--- a/kernel/bpf/syscall.c
++++ b/kernel/bpf/syscall.c
+@@ -136,6 +136,16 @@ void bpf_map_area_free(void *area)
+ 	kvfree(area);
+ }
+ 
++void bpf_map_init_from_attr(struct bpf_map *map, union bpf_attr *attr)
++{
++	map->map_type = attr->map_type;
++	map->key_size = attr->key_size;
++	map->value_size = attr->value_size;
++	map->max_entries = attr->max_entries;
++	map->map_flags = attr->map_flags;
++	map->numa_node = bpf_map_attr_numa_node(attr);
++}
++
+ int bpf_map_precharge_memlock(u32 pages)
+ {
+ 	struct user_struct *user = get_current_user();

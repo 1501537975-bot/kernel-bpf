@@ -1,0 +1,20 @@
+From: 89d0f12ace98335441be979ceb35277284b18221
+Subject: [PATCH] FROMLIST: [net-next,v2,1/2] bpf: Allow CGROUP_SKB eBPF program to access sk_buff
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2017-06-03T00:04:59Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/89d0f12ace98335441be979ceb35277284b18221
+
+---
+diff --git a/kernel/bpf/verifier.c b/kernel/bpf/verifier.c
+--- a/kernel/bpf/verifier.c
++++ b/kernel/bpf/verifier.c
+@@ -3552,6 +3552,7 @@ static bool may_access_skb(enum bpf_prog_type type)
+ 	case BPF_PROG_TYPE_SOCKET_FILTER:
+ 	case BPF_PROG_TYPE_SCHED_CLS:
+ 	case BPF_PROG_TYPE_SCHED_ACT:
++	case BPF_PROG_TYPE_CGROUP_SKB:
+ 		return true;
+ 	default:
+ 		return false;

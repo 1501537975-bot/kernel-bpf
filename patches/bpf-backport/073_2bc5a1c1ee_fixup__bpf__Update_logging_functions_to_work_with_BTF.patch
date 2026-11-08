@@ -1,0 +1,21 @@
+From: 2bc5a1c1ee0f0b74d4035715b11b863e7b5cb06c
+Subject: [PATCH] fixup! bpf: Update logging functions to work with BTF
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2024-01-01T14:44:13Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/2bc5a1c1ee0f0b74d4035715b11b863e7b5cb06c
+
+---
+diff --git a/kernel/bpf/verifier.c b/kernel/bpf/verifier.c
+--- a/kernel/bpf/verifier.c
++++ b/kernel/bpf/verifier.c
+@@ -208,7 +208,7 @@ static __printf(1, 2) void verbose(const char *fmt, ...)
+ 		return;
+ 
+ 	va_start(args, fmt);
+-	bpf_verifier_log_write(&verifier_log, fmt, args);
++	bpf_verifier_vlog(&verifier_log, fmt, args);
+ 	va_end(args);
+ }
+ 

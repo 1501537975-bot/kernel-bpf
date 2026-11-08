@@ -1,0 +1,21 @@
+From: bdd77f57fbf912683700d9a4b7097350d51dbf20
+Subject: [PATCH] syscall: Increase bpf fake uname to 5.4
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2024-01-14T04:49:48Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/bdd77f57fbf912683700d9a4b7097350d51dbf20
+
+---
+diff --git a/kernel/sys.c b/kernel/sys.c
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -1194,7 +1194,7 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
+ 	if (!strncmp(current->comm, "bpfloader", 9) ||
+ 	    !strncmp(current->comm, "netbpfload", 10) ||
+ 	    !strncmp(current->comm, "netd", 4)) {
+-		strcpy(tmp.release, "4.19.0");
++		strcpy(tmp.release, "5.4.0");
+ 		pr_debug("fake uname: %s/%d release=%s\n",
+ 			 current->comm, current->pid, tmp.release);
+ 	}

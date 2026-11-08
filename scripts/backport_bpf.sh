@@ -39,7 +39,29 @@ has_clone3() {
   grep -rq "__NR_clone3" arch/arm64/include 2>/dev/null
 }
 
-# ── 1. 回合上游 BPF 核心（从 mt6768 同代树取 patch）────────────
+# ── 1. 回合 sys_clone3（A17 zygote 硬需求）────────────────────
+log "检查 sys_clone3"
+if has_clone3; then
+  ok "sys_clone3 已存在"
+else
+  log "回合 sys_clone3（内核 syscall + arm64 入口）"
+  # 需要: kernel/sys.c (SYSCALL_DEFINE), include/linux/syscalls.h,
+  #       arch/arm64/include/asm/unistd.h, arch/arm64/include/uapi/asm/unistd.h,
+  #       arch/arm64/entry/common.c, include/uapi/linux/sched.h (CLONE3 args)
+  if [ -d "$PATCH_DIR/clone3" ]; then
+    for p in "$PATCH_DIR"/clone3/*.patch; do
+      [ -f "$p" ] || continue
+      log "apply $(basename "$p")"
+      git apply --3way "$p" || git apply "$p" || warn "apply 失败: $(basename "$p")"
+    done
+    ok "clone3 patch 应用完成"
+  else
+    warn "未找到 clone3 patch 目录，跳过"
+    warn "（A17 需要它；A16 不强制）"
+  fi
+fi
+
+# ── 2. 回合上游 BPF 核心 (可选)（从 mt6768 同代树取 patch）────────────
 log "检查现有 BPF 能力"
 if has_sockmap_skmsg; then
   ok "sockmap→sk_msg 已存在"
@@ -48,6 +70,9 @@ else
   # 上游提交: net: bpf, sockmap: convert to generic sk_msg interface
   # 涉及: net/core/filter.c, net/core/sock_map.c, include/net/bpf.h,
   #       include/linux/bpf.h, kernel/bpf/sockmap.c
+  APPLY_FAILED=0
+  APPLIED=0
+  BPF_OK=1
   if [ -d "$PATCH_DIR/mt6768-bpf" ]; then
     for p in "$PATCH_DIR"/mt6768-bpf/*.patch; do
       [ -f "$p" ] || continue
@@ -69,38 +94,25 @@ else
       # 注意: 浅克隆没有 blob, git apply --3way 会报
       # "repository lacks the necessary blob", 所以直接用普通 apply
       if git apply "$p" 2>/tmp/ga.txt; then
-        :
+        APPLIED=$(( APPLIED + 1 ))
       else
         warn "apply 失败: $name"
         head -3 /tmp/ga.txt | sed 's/^/         /'
+        APPLY_FAILED=$(( APPLY_FAILED + 1 ))
       fi
     done
-    ok "patch 集合应用完成"
+    log "应用结果: 成功 $APPLIED / 失败 $APPLY_FAILED"
+    if [ "$APPLY_FAILED" -gt 0 ]; then
+      warn "有 $APPLY_FAILED 个 patch 失败 -> 回滚 BPF 部分 (半应用状态比不应用更糟)"
+      git -C "$KERNEL_DIR" checkout -- kernel/bpf include/linux include/uapi include/net net/core kernel/trace 2>/dev/null || true
+      git -C "$KERNEL_DIR" clean -fd -- kernel/bpf include/linux include/uapi include/net net/core kernel/trace 2>/dev/null || true
+      warn "BPF 回合未生效 (clone3 已在前面完成, 不受影响)"
+      BPF_OK=0
+    fi
+    ok "patch 集合应用完成 ($APPLIED 个)"
   else
     warn "未找到 mt6768-bpf patch 目录，跳过 sockmap 回合"
     warn "（A16/A17 需要它；请把 patch 集放到 \$PATCH_DIR/mt6768-bpf/）"
-  fi
-fi
-
-# ── 2. 回合 sys_clone3（A17 zygote 硬需求）────────────────────
-log "检查 sys_clone3"
-if has_clone3; then
-  ok "sys_clone3 已存在"
-else
-  log "回合 sys_clone3（内核 syscall + arm64 入口）"
-  # 需要: kernel/sys.c (SYSCALL_DEFINE), include/linux/syscalls.h,
-  #       arch/arm64/include/asm/unistd.h, arch/arm64/include/uapi/asm/unistd.h,
-  #       arch/arm64/entry/common.c, include/uapi/linux/sched.h (CLONE3 args)
-  if [ -d "$PATCH_DIR/clone3" ]; then
-    for p in "$PATCH_DIR"/clone3/*.patch; do
-      [ -f "$p" ] || continue
-      log "apply $(basename "$p")"
-      git apply --3way "$p" || git apply "$p" || warn "apply 失败: $(basename "$p")"
-    done
-    ok "clone3 patch 应用完成"
-  else
-    warn "未找到 clone3 patch 目录，跳过"
-    warn "（A17 需要它；A16 不强制）"
   fi
 fi
 

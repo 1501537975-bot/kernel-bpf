@@ -1,0 +1,85 @@
+From: 9b2ce79e80c0f0f3facdd3e53172120623ff0aa0
+Subject: [PATCH] BACKPORT: bpf: Add name, load_time, uid and map_ids to bpf_prog_info
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2017-09-27T21:37:52Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/9b2ce79e80c0f0f3facdd3e53172120623ff0aa0
+
+---
+diff --git a/include/linux/bpf.h b/include/linux/bpf.h
+--- a/include/linux/bpf.h
++++ b/include/linux/bpf.h
+@@ -219,7 +219,7 @@ struct bpf_prog_aux {
+ 	void *security;
+ #endif
+ 	u64 load_time; /* ns since boottime */
+-	char name[BPF_OBJ_NAME_LEN];
++	u8 name[BPF_OBJ_NAME_LEN];
+ 	struct bpf_dev_offload *offload;
+ 	union {
+ 		struct work_struct work;diff --git a/include/uapi/linux/bpf.h b/include/uapi/linux/bpf.h
+--- a/include/uapi/linux/bpf.h
++++ b/include/uapi/linux/bpf.h
+@@ -270,7 +270,7 @@ union bpf_attr {
+ 		__aligned_u64	log_buf;	/* user supplied buffer */
+ 		__u32		kern_version;	/* checked when prog_type=kprobe */
+ 		__u32		prog_flags;
+-		char		prog_name[BPF_OBJ_NAME_LEN];
++		__u8		prog_name[BPF_OBJ_NAME_LEN];
+ 		__u32		prog_ifindex;	/* ifindex of netdev to prep for */
+ 		/* For some prog types expected attach type must be known at
+ 		 * load time to verify attach type specific parts of prog
+@@ -1008,7 +1008,7 @@ struct bpf_prog_info {
+ 	__u32 created_by_uid;
+ 	__u32 nr_map_ids;
+ 	__aligned_u64 map_ids;
+-	char name[BPF_OBJ_NAME_LEN];
++	__u8  name[BPF_OBJ_NAME_LEN];
+ } __attribute__((aligned(8)));
+ 
+ struct bpf_map_info {diff --git a/kernel/bpf/syscall.c b/kernel/bpf/syscall.c
+--- a/kernel/bpf/syscall.c
++++ b/kernel/bpf/syscall.c
+@@ -364,8 +364,6 @@ static int bpf_obj_name_cpy(char *dst, const char *src)
+ {
+ 	const char *end = src + BPF_OBJ_NAME_LEN;
+ 
+-	memset(dst, 0, BPF_OBJ_NAME_LEN);
+-
+ 	/* Copy all isalnum() and '_' char */
+ 	while (src < end && *src) {
+ 		if (!isalnum(*src) && *src != '_')
+@@ -377,10 +375,13 @@ static int bpf_obj_name_cpy(char *dst, const char *src)
+ 	if (src == end)
+ 		return -EINVAL;
+ 
++	/* '\0' terminates dst */
++	*dst = 0;
++
+ 	return 0;
+ }
+ 
+-#define BPF_MAP_CREATE_LAST_FIELD map_name
++#define BPF_MAP_CREATE_LAST_FIELD numa_node
+ /* called via syscall */
+ static int map_create(union bpf_attr *attr)
+ {
+@@ -1171,7 +1172,7 @@ static int bpf_prog_attach_check_attach_type(const struct bpf_prog *prog,
+ }
+ 
+ /* last field in 'union bpf_attr' used by this command */
+-#define	BPF_PROG_LOAD_LAST_FIELD expected_attach_type
++#define	BPF_PROG_LOAD_LAST_FIELD prog_name
+ 
+ static int bpf_prog_load(union bpf_attr *attr)
+ {
+@@ -1678,7 +1679,7 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
+ 	info.nr_map_ids = prog->aux->used_map_cnt;
+ 	ulen = min_t(u32, info.nr_map_ids, ulen);
+ 	if (ulen) {
+-		u32 __user *user_map_ids = u64_to_user_ptr(info.map_ids);
++		u32 *user_map_ids = (u32 *)info.map_ids;
+ 		u32 i;
+ 
+ 		for (i = 0; i < ulen; i++)

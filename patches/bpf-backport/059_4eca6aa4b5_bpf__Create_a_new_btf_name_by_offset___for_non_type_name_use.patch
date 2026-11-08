@@ -1,0 +1,116 @@
+From: 4eca6aa4b56ce1f5954bcbaf6698412bf97223d8
+Subject: [PATCH] bpf: Create a new btf_name_by_offset() for non type name use case
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2018-12-13T18:41:46Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/4eca6aa4b56ce1f5954bcbaf6698412bf97223d8
+
+---
+diff --git a/include/linux/btf.h b/include/linux/btf.h
+--- a/include/linux/btf.h
++++ b/include/linux/btf.h
+@@ -46,7 +46,6 @@ void btf_type_seq_show(const struct btf *btf, u32 type_id, void *obj,
+ 		       struct seq_file *m);
+ int btf_get_fd_by_id(u32 id);
+ u32 btf_id(const struct btf *btf);
+-bool btf_name_offset_valid(const struct btf *btf, u32 offset);
+ const struct btf_type *btf_type_by_id(const struct btf *btf, u32 type_id);
+ const char *btf_name_by_offset(const struct btf *btf, u32 offset);
+ diff --git a/kernel/bpf/btf.c b/kernel/bpf/btf.c
+--- a/kernel/bpf/btf.c
++++ b/kernel/bpf/btf.c
+@@ -473,7 +473,7 @@ static bool btf_name_valid_identifier(const struct btf *btf, u32 offset)
+ 	return !*src;
+ }
+ 
+-const char *btf_name_by_offset(const struct btf *btf, u32 offset)
++static const char *__btf_name_by_offset(const struct btf *btf, u32 offset)
+ {
+ 	if (!offset)
+ 		return "(anon)";
+@@ -483,6 +483,14 @@ const char *btf_name_by_offset(const struct btf *btf, u32 offset)
+ 		return "(invalid-name-offset)";
+ }
+ 
++const char *btf_name_by_offset(const struct btf *btf, u32 offset)
++{
++	if (offset < btf->hdr.str_len)
++		return &btf->strings[offset];
++
++	return NULL;
++}
++
+ const struct btf_type *btf_type_by_id(const struct btf *btf, u32 type_id)
+ {
+ 	if (type_id > btf->nr_types)
+@@ -553,7 +561,7 @@ __printf(4, 5) static void __btf_verifier_log_type(struct btf_verifier_env *env,
+ 	__btf_verifier_log(log, "[%u] %s %s%s",
+ 			   env->log_type_id,
+ 			   btf_kind_str[kind],
+-			   btf_name_by_offset(btf, t->name_off),
++			   __btf_name_by_offset(btf, t->name_off),
+ 			   log_details ? " " : "");
+ 
+ 	if (log_details)
+@@ -597,7 +605,7 @@ static void btf_verifier_log_member(struct btf_verifier_env *env,
+ 		btf_verifier_log_type(env, struct_type, NULL);
+ 
+ 	__btf_verifier_log(log, "\t%s type_id=%u bits_offset=%u",
+-			   btf_name_by_offset(btf, member->name_off),
++			   __btf_name_by_offset(btf, member->name_off),
+ 			   member->type, member->offset);
+ 
+ 	if (fmt && *fmt) {
+@@ -1793,7 +1801,7 @@ static s32 btf_enum_check_meta(struct btf_verifier_env *env,
+ 		}
+ 
+ 		btf_verifier_log(env, "\t%s val=%d\n",
+-				 btf_name_by_offset(btf, enums[i].name_off),
++				 __btf_name_by_offset(btf, enums[i].name_off),
+ 				 enums[i].val);
+ 	}
+ 
+@@ -1817,7 +1825,7 @@ static void btf_enum_seq_show(const struct btf *btf, const struct btf_type *t,
+ 	for (i = 0; i < nr_enums; i++) {
+ 		if (v == enums[i].val) {
+ 			seq_printf(m, "%s",
+-				   btf_name_by_offset(btf, enums[i].name_off));
++				   __btf_name_by_offset(btf, enums[i].name_off));
+ 			return;
+ 		}
+ 	}
+@@ -1874,17 +1882,17 @@ static void btf_func_proto_log(struct btf_verifier_env *env,
+ 	}
+ 
+ 	btf_verifier_log(env, "%u %s", args[0].type,
+-			 btf_name_by_offset(env->btf,
++			 __btf_name_by_offset(env->btf,
+ 					    args[0].name_off));
+ 	for (i = 1; i < nr_args - 1; i++)
+ 		btf_verifier_log(env, ", %u %s", args[i].type,
+-				 btf_name_by_offset(env->btf,
++				 __btf_name_by_offset(env->btf,
+ 						    args[i].name_off));
+ 	if (nr_args > 1) {
+ 		const struct btf_param *last_arg = &args[nr_args - 1];
+ 		if (last_arg->type)
+ 			btf_verifier_log(env, ", %u %s", last_arg->type,
+-					 btf_name_by_offset(env->btf,
++					 __btf_name_by_offset(env->btf,
+ 							    last_arg->name_off));
+ 		else
+ 			btf_verifier_log(env, ", vararg");diff --git a/kernel/bpf/verifier.c b/kernel/bpf/verifier.c
+--- a/kernel/bpf/verifier.c
++++ b/kernel/bpf/verifier.c
+@@ -5007,8 +5007,8 @@ static int check_btf_line(struct bpf_verifier_env *env,
+ 			err = -EINVAL;
+ 			goto err_free;
+ 		}
+-		if (!btf_name_offset_valid(btf, linfo[i].line_off) ||
+-		    !btf_name_offset_valid(btf, linfo[i].file_name_off)) {
++		if (!btf_name_by_offset(btf, linfo[i].line_off) ||
++		    !btf_name_by_offset(btf, linfo[i].file_name_off)) {
+ 			verbose(env, "Invalid line_info[%u].line_off or .file_name_off\n", i);
+ 			err = -EINVAL;
+ 			goto err_free;

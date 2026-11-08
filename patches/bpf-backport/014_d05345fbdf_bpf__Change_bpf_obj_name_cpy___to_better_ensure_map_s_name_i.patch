@@ -1,0 +1,31 @@
+From: d05345fbdfbf36a31d67a615cfb62da937ec79ed
+Subject: [PATCH] bpf: Change bpf_obj_name_cpy() to better ensure map's name is init by 0
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2017-10-06T04:52:11Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/d05345fbdfbf36a31d67a615cfb62da937ec79ed
+
+---
+diff --git a/kernel/bpf/syscall.c b/kernel/bpf/syscall.c
+--- a/kernel/bpf/syscall.c
++++ b/kernel/bpf/syscall.c
+@@ -364,6 +364,8 @@ static int bpf_obj_name_cpy(char *dst, const char *src)
+ {
+ 	const char *end = src + BPF_OBJ_NAME_LEN;
+ 
++	memset(dst, 0, BPF_OBJ_NAME_LEN);
++
+ 	/* Copy all isalnum() and '_' char */
+ 	while (src < end && *src) {
+ 		if (!isalnum(*src) && *src != '_')
+@@ -375,9 +377,6 @@ static int bpf_obj_name_cpy(char *dst, const char *src)
+ 	if (src == end)
+ 		return -EINVAL;
+ 
+-	/* '\0' terminates dst */
+-	*dst = 0;
+-
+ 	return 0;
+ }
+ 

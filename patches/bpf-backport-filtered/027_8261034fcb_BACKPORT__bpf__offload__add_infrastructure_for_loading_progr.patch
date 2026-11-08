@@ -1,0 +1,61 @@
+From: 8261034fcbc655ba78c0afc3eb74b28946f2faf9
+Subject: [PATCH] BACKPORT: bpf: offload: add infrastructure for loading programs for a specific netdev
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2017-11-03T20:56:17Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/8261034fcbc655ba78c0afc3eb74b28946f2faf9
+
+---
+diff --git a/include/linux/bpf.h b/include/linux/bpf.h
+--- a/include/linux/bpf.h
++++ b/include/linux/bpf.h
+@@ -220,6 +220,7 @@ struct bpf_prog_aux {
+ #endif
+ 	u64 load_time; /* ns since boottime */
+ 	char name[BPF_OBJ_NAME_LEN];
++	struct bpf_dev_offload *offload;
+ 	union {
+ 		struct work_struct work;
+ 		struct rcu_head	rcu;diff --git a/include/uapi/linux/bpf.h b/include/uapi/linux/bpf.h
+--- a/include/uapi/linux/bpf.h
++++ b/include/uapi/linux/bpf.h
+@@ -270,6 +270,7 @@ union bpf_attr {
+ 		__u32		kern_version;	/* checked when prog_type=kprobe */
+ 		__u32		prog_flags;
+ 		char		prog_name[BPF_OBJ_NAME_LEN];
++		__u32		prog_target_ifindex;	/* ifindex of netdev to prep for */
+ 	};
+ 
+ 	struct { /* anonymous struct used by BPF_OBJ_* commands */diff --git a/kernel/bpf/offload.c b/kernel/bpf/offload.c
+--- a/kernel/bpf/offload.c
++++ b/kernel/bpf/offload.c
+@@ -28,7 +28,7 @@ int bpf_prog_offload_init(struct bpf_prog *prog, union bpf_attr *attr)
+ 	init_waitqueue_head(&offload->verifier_done);
+ 
+ 	rtnl_lock();
+-	offload->netdev = __dev_get_by_index(net, attr->prog_ifindex);
++	offload->netdev = __dev_get_by_index(net, attr->prog_target_ifindex);
+ 	if (!offload->netdev) {
+ 		rtnl_unlock();
+ 		kfree(offload);diff --git a/kernel/bpf/syscall.c b/kernel/bpf/syscall.c
+--- a/kernel/bpf/syscall.c
++++ b/kernel/bpf/syscall.c
+@@ -1171,7 +1171,7 @@ static int bpf_prog_attach_check_attach_type(const struct bpf_prog *prog,
+ }
+ 
+ /* last field in 'union bpf_attr' used by this command */
+-#define	BPF_PROG_LOAD_LAST_FIELD prog_name
++#define	BPF_PROG_LOAD_LAST_FIELD prog_target_ifindex
+ 
+ static int bpf_prog_load(union bpf_attr *attr)
+ {
+@@ -1240,7 +1240,7 @@ static int bpf_prog_load(union bpf_attr *attr)
+ 	atomic_set(&prog->aux->refcnt, 1);
+ 	prog->gpl_compatible = is_gpl ? 1 : 0;
+ 
+-	if (attr->prog_ifindex) {
++	if (attr->prog_target_ifindex) {
+ 		err = bpf_prog_offload_init(prog, attr);
+ 		if (err)
+ 			goto free_prog;

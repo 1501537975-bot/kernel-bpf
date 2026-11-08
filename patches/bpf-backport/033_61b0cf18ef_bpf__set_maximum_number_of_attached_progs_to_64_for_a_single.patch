@@ -1,0 +1,33 @@
+From: 61b0cf18ef5a6ed3c04e5138008b2231554b5b94
+Subject: [PATCH] bpf: set maximum number of attached progs to 64 for a single perf tp
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2017-11-30T21:47:54Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/61b0cf18ef5a6ed3c04e5138008b2231554b5b94
+
+---
+diff --git a/kernel/trace/bpf_trace.c b/kernel/trace/bpf_trace.c
+--- a/kernel/trace/bpf_trace.c
++++ b/kernel/trace/bpf_trace.c
+@@ -787,6 +787,8 @@ const struct bpf_prog_ops perf_event_prog_ops = {
+ 
+ static DEFINE_MUTEX(bpf_event_mutex);
+ 
++#define BPF_TRACE_MAX_PROGS 64
++
+ int perf_event_attach_bpf_prog(struct perf_event *event,
+ 			       struct bpf_prog *prog)
+ {
+@@ -800,6 +802,11 @@ int perf_event_attach_bpf_prog(struct perf_event *event,
+ 		goto unlock;
+ 
+ 	old_array = event->tp_event->prog_array;
++	if (old_array &&
++	    bpf_prog_array_length(old_array) >= BPF_TRACE_MAX_PROGS) {
++		ret = -E2BIG;
++		goto unlock;
++	}
+ 	ret = bpf_prog_array_copy(old_array, NULL, prog, &new_array);
+ 	if (ret < 0)
+ 		goto unlock;

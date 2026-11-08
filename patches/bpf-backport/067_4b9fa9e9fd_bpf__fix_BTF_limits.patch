@@ -1,0 +1,24 @@
+From: 4b9fa9e9fd81e5bb7a0736e7c73e2cb51d0d3bf9
+Subject: [PATCH] bpf: fix BTF limits
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2019-09-17T17:45:38Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/4b9fa9e9fd81e5bb7a0736e7c73e2cb51d0d3bf9
+
+---
+diff --git a/include/uapi/linux/btf.h b/include/uapi/linux/btf.h
+--- a/include/uapi/linux/btf.h
++++ b/include/uapi/linux/btf.h
+@@ -22,9 +22,9 @@ struct btf_header {
+ };
+ 
+ /* Max # of type identifier */
+-#define BTF_MAX_TYPE	0x0000ffff
++#define BTF_MAX_TYPE	0x000fffff
+ /* Max offset into the string section */
+-#define BTF_MAX_NAME_OFFSET	0x0000ffff
++#define BTF_MAX_NAME_OFFSET	0x00ffffff
+ /* Max # of struct/union/enum members or func args */
+ #define BTF_MAX_VLEN	0xffff
+ 

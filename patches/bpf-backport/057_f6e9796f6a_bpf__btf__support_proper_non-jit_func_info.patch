@@ -1,0 +1,265 @@
+From: f6e9796f6a908d28b515bfac6ead618b79f8a4e8
+Subject: [PATCH] bpf: btf: support proper non-jit func info
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2018-11-25T07:20:44Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/f6e9796f6a908d28b515bfac6ead618b79f8a4e8
+
+---
+diff --git a/include/linux/bpf.h b/include/linux/bpf.h
+--- a/include/linux/bpf.h
++++ b/include/linux/bpf.h
+@@ -280,7 +280,8 @@ struct bpf_prog_aux {
+ 	u32 max_ctx_offset;
+ 	u32 stack_depth;
+ 	u32 id;
+-	u32 func_cnt;
++	u32 func_cnt; /* used by non-func prog as the number of func progs */
++	u32 func_idx; /* 0 for non-func prog, the index in func array for func prog */
+ 	struct bpf_prog **func;
+ 	void *jit_data; /* JIT specific data. arch dependent */
+ 	struct latch_tree_node ksym_tnode;
+@@ -297,7 +298,8 @@ struct bpf_prog_aux {
+ #endif
+ 	struct bpf_prog_offload *offload;
+ 	struct btf *btf;
+-	u32 type_id; /* type id for this prog/func */
++	struct bpf_func_info *func_info;
++	u32 func_info_cnt;
+ 	union {
+ 		struct work_struct work;
+ 		struct rcu_head	rcu;diff --git a/include/linux/bpf_verifier.h b/include/linux/bpf_verifier.h
+--- a/include/linux/bpf_verifier.h
++++ b/include/linux/bpf_verifier.h
+@@ -221,7 +221,6 @@ void bpf_verifier_vlog(struct bpf_verifier_log *log, const char *fmt,
+ struct bpf_subprog_info {
+ 	u32 start; /* insn idx of function entry point */
+ 	u16 stack_depth; /* max. stack depth used by this function */
+-	u32 type_id; /* btf type_id for this subprog */
+ };
+ 
+ /* single container for all structs
+@@ -270,4 +269,12 @@ int bpf_prog_offload_verify_insn(struct bpf_verifier_env *env,
+ int bpf_analyzer(struct bpf_prog *prog, const struct bpf_ext_analyzer_ops *ops,
+ 		 void *priv);
+ 
++#include <linux/vmalloc.h>
++#include <linux/mm.h>
++static inline void *__compat_kvcalloc(size_t n, size_t size, gfp_t flags)
++{
++        return kvmalloc_array(n, size, flags | __GFP_ZERO);
++}
++#define kvcalloc __compat_kvcalloc
++
+ #endif /* _LINUX_BPF_VERIFIER_H */diff --git a/kernel/bpf/core.c b/kernel/bpf/core.c
+--- a/kernel/bpf/core.c
++++ b/kernel/bpf/core.c
+@@ -377,7 +377,8 @@ static void bpf_get_prog_name(const struct bpf_prog *prog, char *sym)
+ 
+ 	/* prog->aux->name will be ignored if full btf name is available */
+ 	if (prog->aux->btf) {
+-		type = btf_type_by_id(prog->aux->btf, prog->aux->type_id);
++		type = btf_type_by_id(prog->aux->btf,
++				      prog->aux->func_info[prog->aux->func_idx].type_id);
+ 		func_name = btf_name_by_offset(prog->aux->btf, type->name_off);
+ 		snprintf(sym, (size_t)(end - sym), "_%s", func_name);
+ 		return;diff --git a/kernel/bpf/syscall.c b/kernel/bpf/syscall.c
+--- a/kernel/bpf/syscall.c
++++ b/kernel/bpf/syscall.c
+@@ -1107,6 +1107,7 @@ static void __bpf_prog_put(struct bpf_prog *prog, bool do_idr_lock)
+ 		bpf_prog_free_id(prog, do_idr_lock);
+ 		bpf_prog_kallsyms_del(prog);
+ 		btf_put(prog->aux->btf);
++		kvfree(prog->aux->func_info);
+ 
+ 		call_rcu(&prog->aux->rcu, __bpf_prog_put_rcu);
+ 	}
+@@ -2109,41 +2110,27 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
+ 	}
+ 
+ 	if (prog->aux->btf) {
++		u32 krec_size = sizeof(struct bpf_func_info);
+ 		u32 ucnt, urec_size;
++
+ 		info.btf_id = btf_id(prog->aux->btf);
++
+ 		ucnt = info.func_info_cnt;
+-		info.func_info_cnt = prog->aux->func_cnt ? : 1;
++		info.func_info_cnt = prog->aux->func_info_cnt;
+ 		urec_size = info.func_info_rec_size;
+-		info.func_info_rec_size = sizeof(struct bpf_func_info);
++		info.func_info_rec_size = krec_size;
+ 		if (ucnt) {
+ 			/* expect passed-in urec_size is what the kernel expects */
+ 			if (urec_size != info.func_info_rec_size)
+ 				return -EINVAL;
++
+ 			if (bpf_dump_raw_ok()) {
+-				struct bpf_func_info kern_finfo;
+ 				char __user *user_finfo;
+-				u32 i, insn_offset;
+ 				user_finfo = u64_to_user_ptr(info.func_info);
+-				if (prog->aux->func_cnt) {
+-					ucnt = min_t(u32, info.func_info_cnt, ucnt);
+-					insn_offset = 0;
+-					for (i = 0; i < ucnt; i++) {
+-						kern_finfo.insn_offset = insn_offset;
+-						kern_finfo.type_id = prog->aux->func[i]->aux->type_id;
+-						if (copy_to_user(user_finfo, &kern_finfo,
+-								 sizeof(kern_finfo)))
+-							return -EFAULT;
+-						/* func[i]->len holds the prog len */
+-						insn_offset += prog->aux->func[i]->len;
+-						user_finfo += urec_size;
+-					}
+-				} else {
+-					kern_finfo.insn_offset = 0;
+-					kern_finfo.type_id = prog->aux->type_id;
+-					if (copy_to_user(user_finfo, &kern_finfo,
+-							 sizeof(kern_finfo)))
+-						return -EFAULT;
+-				}
++				ucnt = min_t(u32, info.func_info_cnt, ucnt);
++				if (copy_to_user(user_finfo, prog->aux->func_info,
++						 krec_size * ucnt))
++					return -EFAULT;
+ 			} else {
+ 				info.func_info_cnt = 0;
+ 			}diff --git a/kernel/bpf/verifier.c b/kernel/bpf/verifier.c
+--- a/kernel/bpf/verifier.c
++++ b/kernel/bpf/verifier.c
+@@ -4823,7 +4823,7 @@ static int check_btf_func(struct bpf_prog *prog, struct bpf_verifier_env *env,
+ {
+ 	u32 i, nfuncs, urec_size, min_size, prev_offset;
+ 	u32 krec_size = sizeof(struct bpf_func_info);
+-	struct bpf_func_info krecord = {};
++	struct bpf_func_info *krecord = NULL;
+ 	const struct btf_type *type;
+ 	void __user *urecord;
+ 	struct btf *btf;
+@@ -4854,6 +4854,13 @@ static int check_btf_func(struct bpf_prog *prog, struct bpf_verifier_env *env,
+ 
+ 	urecord = u64_to_user_ptr(attr->func_info);
+ 	min_size = min_t(u32, krec_size, urec_size);
++
++	krecord = kvcalloc(nfuncs, krec_size, GFP_KERNEL | __GFP_NOWARN);
++	if (!krecord) {
++		ret = -ENOMEM;
++		goto free_btf;
++	}
++
+ 	for (i = 0; i < nfuncs; i++) {
+ 		ret = bpf_check_uarg_tail_zero(urecord, krec_size, urec_size);
+ 		if (ret) {
+@@ -4868,58 +4875,67 @@ static int check_btf_func(struct bpf_prog *prog, struct bpf_verifier_env *env,
+ 			goto free_btf;
+ 		}
+ 
+-		if (copy_from_user(&krecord, urecord, min_size)) {
++		if (copy_from_user(&krecord[i], urecord, min_size)) {
+ 			ret = -EFAULT;
+ 			goto free_btf;
+ 		}
+ 
+ 		/* check insn_offset */
+ 		if (i == 0) {
+-			if (krecord.insn_offset) {
++			if (krecord[i].insn_offset) {
+ 				verbose(env,
+ 					"nonzero insn_offset %u for the first func info record",
+-					krecord.insn_offset);
++					krecord[i].insn_offset);
+ 				ret = -EINVAL;
+ 				goto free_btf;
+ 			}
+-		} else if (krecord.insn_offset <= prev_offset) {
++		} else if (krecord[i].insn_offset <= prev_offset) {
+ 			verbose(env,
+ 				"same or smaller insn offset (%u) than previous func info record (%u)",
+-				krecord.insn_offset, prev_offset);
++				krecord[i].insn_offset, prev_offset);
+ 			ret = -EINVAL;
+ 			goto free_btf;
+ 		}
+ 
+-		if (env->subprog_info[i].start != krecord.insn_offset) {
++		if (env->subprog_info[i].start != krecord[i].insn_offset) {
+ 			verbose(env, "func_info BTF section doesn't match subprog layout in BPF program\n");
+ 			ret = -EINVAL;
+ 			goto free_btf;
+ 		}
+ 
+ 		/* check type_id */
+-		type = btf_type_by_id(btf, krecord.type_id);
++		type = btf_type_by_id(btf, krecord[i].type_id);
+ 		if (!type || BTF_INFO_KIND(type->info) != BTF_KIND_FUNC) {
+ 			verbose(env, "invalid type id %d in func info",
+-				krecord.type_id);
++				krecord[i].type_id);
+ 			ret = -EINVAL;
+ 			goto free_btf;
+ 		}
+ 
+-		if (i == 0)
+-			prog->aux->type_id = krecord.type_id;
+-		env->subprog_info[i].type_id = krecord.type_id;
+-		prev_offset = krecord.insn_offset;
++		prev_offset = krecord[i].insn_offset;
+ 		urecord += urec_size;
+ 	}
+ 
+ 	prog->aux->btf = btf;
++	prog->aux->func_info = krecord;
++	prog->aux->func_info_cnt = nfuncs;
+ 	return 0;
+ 
+ free_btf:
+ 	btf_put(btf);
++	kvfree(krecord);
+ 	return ret;
+ }
+ 
++static void adjust_btf_func(struct bpf_verifier_env *env)
++{
++	int i;
++	if (!env->prog->aux->func_info)
++		return;
++	for (i = 0; i < env->subprog_cnt; i++)
++		env->prog->aux->func_info[i].insn_offset = env->subprog_info[i].start;
++}
++
+ /* check %cur's range satisfies %old's */
+ static bool range_within(struct bpf_reg_state *old,
+ 			 struct bpf_reg_state *cur)
+@@ -6149,15 +6165,17 @@ static int jit_subprogs(struct bpf_verifier_env *env)
+ 		       len * sizeof(struct bpf_insn));
+ 		func[i]->len = len;
+ 		func[i]->is_func = 1;
++		func[i]->aux->func_idx = i;
++		/* the btf and func_info will be freed only at prog->aux */
++		func[i]->aux->btf = prog->aux->btf;
++		func[i]->aux->func_info = prog->aux->func_info;
++
+ 		/* Use bpf_prog_F_tag to indicate functions in stack traces.
+ 		 * Long term would need debug info to populate names
+ 		 */
+ 		func[i]->aux->name[0] = 'F';
+ 		func[i]->aux->stack_depth = env->subprog_info[i].stack_depth;
+ 		func[i]->jit_requested = 1;
+-		/* the btf will be freed only at prog->aux */
+-		func[i]->aux->btf = prog->aux->btf;
+-		func[i]->aux->type_id = env->subprog_info[i].type_id;
+ 		func[i] = bpf_int_jit_compile(func[i]);
+ 		if (!func[i]->jited) {
+ 			err = -ENOTSUPP;
+@@ -6660,6 +6678,9 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr,
+ 		convert_pseudo_ld_imm64(env);
+ 	}
+ 
++	if (ret == 0)
++		adjust_btf_func(env);
++
+ err_release_maps:
+ 	if (!env->prog->aux->used_maps)
+ 		/* if we didn't copy map pointers into bpf_prog_info, release

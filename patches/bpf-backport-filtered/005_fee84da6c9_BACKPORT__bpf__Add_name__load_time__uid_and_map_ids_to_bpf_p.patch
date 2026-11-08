@@ -1,0 +1,142 @@
+From: fee84da6c9d5ce80a36613419a5046029e8bc58c
+Subject: [PATCH] BACKPORT: bpf: Add name, load_time, uid and map_ids to bpf_prog_info
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2017-09-27T21:37:52Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/fee84da6c9d5ce80a36613419a5046029e8bc58c
+
+---
+diff --git a/include/linux/bpf.h b/include/linux/bpf.h
+--- a/include/linux/bpf.h
++++ b/include/linux/bpf.h
+@@ -203,6 +203,8 @@ struct bpf_prog_aux {
+ #ifdef CONFIG_SECURITY
+ 	void *security;
+ #endif
++	u64 load_time; /* ns since boottime */
++	u8 name[BPF_OBJ_NAME_LEN];
+ 	union {
+ 		struct work_struct work;
+ 		struct rcu_head	rcu;diff --git a/include/uapi/linux/bpf.h b/include/uapi/linux/bpf.h
+--- a/include/uapi/linux/bpf.h
++++ b/include/uapi/linux/bpf.h
+@@ -213,6 +213,8 @@ enum bpf_attach_type {
+ /* Specify numa node during map creation */
+ #define BPF_F_NUMA_NODE		(1U << 2)
+ 
++#define BPF_OBJ_NAME_LEN 16U
++
+ /* Flags for accessing BPF object */
+ #define BPF_F_RDONLY		(1U << 3)
+ #define BPF_F_WRONLY		(1U << 4)
+@@ -252,6 +254,7 @@ union bpf_attr {
+ 		__aligned_u64	log_buf;	/* user supplied buffer */
+ 		__u32		kern_version;	/* checked when prog_type=kprobe */
+ 		__u32		prog_flags;
++		__u8		prog_name[BPF_OBJ_NAME_LEN];
+ 	};
+ 
+ 	struct { /* anonymous struct used by BPF_OBJ_* commands */
+@@ -954,6 +957,11 @@ struct bpf_prog_info {
+ 	__u32 xlated_prog_len;
+ 	__aligned_u64 jited_prog_insns;
+ 	__aligned_u64 xlated_prog_insns;
++	__u64 load_time;	/* ns since boottime */
++	__u32 created_by_uid;
++	__u32 nr_map_ids;
++	__aligned_u64 map_ids;
++	__u8  name[BPF_OBJ_NAME_LEN];
+ } __attribute__((aligned(8)));
+ 
+ struct bpf_map_info {diff --git a/kernel/bpf/syscall.c b/kernel/bpf/syscall.c
+--- a/kernel/bpf/syscall.c
++++ b/kernel/bpf/syscall.c
+@@ -24,6 +24,9 @@
+ #include <linux/version.h>
+ #include <linux/kernel.h>
+ #include <linux/idr.h>
++#include <linux/cred.h>
++#include <linux/timekeeping.h>
++#include <linux/ctype.h>
+ 
+ #define IS_FD_ARRAY(map) ((map)->map_type == BPF_MAP_TYPE_PROG_ARRAY || \
+ 			   (map)->map_type == BPF_MAP_TYPE_PERF_EVENT_ARRAY || \
+@@ -354,6 +357,30 @@ int bpf_get_file_flag(int flags)
+ 		   offsetof(union bpf_attr, CMD##_LAST_FIELD) - \
+ 		   sizeof(attr->CMD##_LAST_FIELD)) != NULL
+ 
++/* dst and src must have at least BPF_OBJ_NAME_LEN number of bytes.
++ * Return 0 on success and < 0 on error.
++ */
++static int bpf_obj_name_cpy(char *dst, const char *src)
++{
++	const char *end = src + BPF_OBJ_NAME_LEN;
++
++	/* Copy all isalnum() and '_' char */
++	while (src < end && *src) {
++		if (!isalnum(*src) && *src != '_')
++			return -EINVAL;
++		*dst++ = *src++;
++	}
++
++	/* No '\0' found in BPF_OBJ_NAME_LEN number of bytes */
++	if (src == end)
++		return -EINVAL;
++
++	/* '\0' terminates dst */
++	*dst = 0;
++
++	return 0;
++}
++
+ #define BPF_MAP_CREATE_LAST_FIELD numa_node
+ /* called via syscall */
+ static int map_create(union bpf_attr *attr)
+@@ -1071,7 +1098,7 @@ struct bpf_prog *bpf_prog_get_type(u32 ufd, enum bpf_prog_type type)
+ EXPORT_SYMBOL_GPL(bpf_prog_get_type);
+ 
+ /* last field in 'union bpf_attr' used by this command */
+-#define	BPF_PROG_LOAD_LAST_FIELD prog_flags
++#define	BPF_PROG_LOAD_LAST_FIELD prog_name
+ 
+ static int bpf_prog_load(union bpf_attr *attr)
+ {
+@@ -1139,6 +1166,11 @@ static int bpf_prog_load(union bpf_attr *attr)
+ 	if (err < 0)
+ 		goto free_prog;
+ 
++	prog->aux->load_time = ktime_get_boot_ns();
++	err = bpf_obj_name_cpy(prog->aux->name, attr->prog_name);
++	if (err)
++		goto free_prog;
++
+ 	/* run eBPF verifier */
+ 	err = bpf_check(&prog, attr);
+ 	if (err < 0)
+@@ -1492,8 +1524,25 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
+ 
+ 	info.type = prog->type;
+ 	info.id = prog->aux->id;
++	info.load_time = prog->aux->load_time;
++	info.created_by_uid = from_kuid_munged(current_user_ns(),
++					       prog->aux->user->uid);
+ 
+ 	memcpy(info.tag, prog->tag, sizeof(prog->tag));
++	memcpy(info.name, prog->aux->name, sizeof(prog->aux->name));
++
++	ulen = info.nr_map_ids;
++	info.nr_map_ids = prog->aux->used_map_cnt;
++	ulen = min_t(u32, info.nr_map_ids, ulen);
++	if (ulen) {
++		u32 *user_map_ids = (u32 *)info.map_ids;
++		u32 i;
++
++		for (i = 0; i < ulen; i++)
++			if (put_user(prog->aux->used_maps[i]->id,
++				     &user_map_ids[i]))
++				return -EFAULT;
++	}
+ 
+ 	if (!capable(CAP_SYS_ADMIN)) {
+ 		info.jited_prog_len = 0;

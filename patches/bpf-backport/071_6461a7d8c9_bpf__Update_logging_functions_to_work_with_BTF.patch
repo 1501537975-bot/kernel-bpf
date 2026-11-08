@@ -1,0 +1,125 @@
+From: 6461a7d8c9d787f3c92bcd245cb82802698f4a17
+Subject: [PATCH] bpf: Update logging functions to work with BTF
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2023-10-15T12:57:14Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/6461a7d8c9d787f3c92bcd245cb82802698f4a17
+
+---
+diff --git a/include/linux/bpf_verifier.h b/include/linux/bpf_verifier.h
+--- a/include/linux/bpf_verifier.h
++++ b/include/linux/bpf_verifier.h
+@@ -136,9 +136,11 @@ struct bpf_insn_aux_data {
+ 
+ #define MAX_USED_MAPS 64 /* max number of maps accessed by one eBPF program */
+ 
++#define BPF_VERIFIER_TMP_LOG_SIZE	1024
++
+ struct bpf_verifier_log {
+ 	u32 level;
+-	char *kbuf;
++	char kbuf[BPF_VERIFIER_TMP_LOG_SIZE];
+ 	char __user *ubuf;
+ 	u32 len_used;
+ 	u32 len_total;
+@@ -149,6 +151,17 @@ static inline bool bpf_verifier_log_full(const struct bpf_verifier_log *log)
+ 	return log->len_used >= log->len_total - 1;
+ }
+ 
++static inline bool bpf_verifier_log_needed(const struct bpf_verifier_log *log)
++{
++	return log->level && log->ubuf && !bpf_verifier_log_full(log);
++}
++
++__printf(2, 3) void bpf_verifier_log_write(struct bpf_verifier_log *log,
++					   const char *fmt, ...);
++
++void bpf_verifier_vlog(struct bpf_verifier_log *log, const char *fmt,
++		       va_list args);
++
+ struct bpf_verifier_env;
+ struct bpf_ext_analyzer_ops {
+ 	int (*insn_hook)(struct bpf_verifier_env *env,diff --git a/kernel/bpf/verifier.c b/kernel/bpf/verifier.c
+--- a/kernel/bpf/verifier.c
++++ b/kernel/bpf/verifier.c
+@@ -202,15 +202,13 @@ EXPORT_SYMBOL_GPL(bpf_verifier_log_write);
+  */
+ static __printf(1, 2) void verbose(const char *fmt, ...)
+ {
+-	struct bpf_verifier_log *log = &verifier_log;
+ 	va_list args;
+ 
+-	if (!log->level || bpf_verifier_log_full(log))
++	if (!bpf_verifier_log_needed(&verifier_log))
+ 		return;
+ 
+ 	va_start(args, fmt);
+-	log->len_used += vscnprintf(log->kbuf + log->len_used,
+-				    log->len_total - log->len_used, fmt, args);
++	bpf_verifier_vlog(&verifier_log, fmt, args);
+ 	va_end(args);
+ }
+ 
+@@ -5156,9 +5154,6 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr)
+ 			goto err_unlock;
+ 
+ 		ret = -ENOMEM;
+-		log->kbuf = vmalloc(log->len_total);
+-		if (!log->kbuf)
+-			goto err_unlock;
+ 	} else {
+ 		log->level = 0;
+ 	}
+@@ -5211,14 +5206,10 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr)
+ 		ret = fixup_bpf_calls(env);
+ 
+ 	if (log->level && bpf_verifier_log_full(log)) {
+-		BUG_ON(log->len_used >= log->len_total);
+-		/* verifier log exceeded user supplied buffer */
+ 		ret = -ENOSPC;
+ 	}
+ 
+-	/* copy verifier log back to user space including trailing zero */
+-	if (log->level && copy_to_user(log->ubuf, log->kbuf,
+-				       log->len_used + 1) != 0) {
++	if (log->level && !log->ubuf) {
+ 		ret = -EFAULT;
+ 		goto err_release_maps;
+ 	}
+@@ -5244,9 +5235,7 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr)
+ 		convert_pseudo_ld_imm64(env);
+ 	}
+ 
+-free_log_buf:
+-	if (log->level)
+-		vfree(log->kbuf);
++err_release_maps:
+ 	if (!env->prog->aux->used_maps)
+ 		/* if we didn't copy map pointers into bpf_prog_info, release
+ 		 * them now. Otherwise free_used_maps() will release them.diff --git a/scripts/module-lto.lds b/scripts/module-lto.lds
+--- a/scripts/module-lto.lds
++++ b/scripts/module-lto.lds
+@@ -0,0 +1,22 @@
++
++SECTIONS {
++ /DISCARD/ : {
++  *(.eh_frame)
++ }
++ .bss : {
++  *(.bss .bss.[0-9a-zA-Z_]*)
++  *(.bss..L*)
++ }
++ .data : {
++  *(.data .data.[0-9a-zA-Z_]*)
++  *(.data..L*)
++ }
++ .rodata : {
++  *(.rodata .rodata.[0-9a-zA-Z_]*)
++  *(.rodata..L*)
++ }
++ .text : ALIGN((1 << 12)) {
++  *(.text.__cfi_check)
++  *(.text .text.[0-9a-zA-Z_]* .text..L.cfi*)
++ }
++}

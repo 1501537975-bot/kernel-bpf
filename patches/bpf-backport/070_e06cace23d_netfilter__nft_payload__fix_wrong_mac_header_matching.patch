@@ -1,0 +1,21 @@
+From: e06cace23d09a39c309b748d36aa0c3c834eab48
+Subject: [PATCH] netfilter: nft_payload: fix wrong mac header matching
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2023-10-08T17:36:53Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/e06cace23d09a39c309b748d36aa0c3c834eab48
+
+---
+diff --git a/net/netfilter/nft_payload.c b/net/netfilter/nft_payload.c
+--- a/net/netfilter/nft_payload.c
++++ b/net/netfilter/nft_payload.c
+@@ -84,7 +84,7 @@ static void nft_payload_eval(const struct nft_expr *expr,
+ 
+ 	switch (priv->base) {
+ 	case NFT_PAYLOAD_LL_HEADER:
+-		if (!skb_mac_header_was_set(skb))
++		if (!skb_mac_header_was_set(skb) || skb_mac_header_len(skb) == 0)
+ 			goto err;
+ 
+ 		if (skb_vlan_tag_present(skb)) {

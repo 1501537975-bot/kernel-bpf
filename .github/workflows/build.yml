@@ -8,9 +8,9 @@ on:
         type: boolean
         default: true
       enable_bpf:
-        description: '回合 5.10 BPF + sys_clone3（Android 16/17 必需）'
+        description: '回合 BPF + sys_clone3（A16/A17 必需; A14 档不需要, 当前实验性）'
         type: boolean
-        default: true
+        default: false
       enable_uname:
         description: '伪装 uname 为 5.4.186（放行 BPF 加载器的版本检查）'
         type: boolean

@@ -1,0 +1,21 @@
+From: ef2dd6c985d0d45b058765d45eae15494d7c3c30
+Subject: [PATCH] bpf: verifier_log: fix null pointer dereference
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2025-05-24T15:14:09Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/ef2dd6c985d0d45b058765d45eae15494d7c3c30
+
+---
+diff --git a/include/linux/bpf_verifier.h b/include/linux/bpf_verifier.h
+--- a/include/linux/bpf_verifier.h
++++ b/include/linux/bpf_verifier.h
+@@ -212,7 +212,7 @@ static inline bool bpf_verifier_log_full(const struct bpf_verifier_log *log)
+ 
+ static inline bool bpf_verifier_log_needed(const struct bpf_verifier_log *log)
+ {
+-	return log->level && log->ubuf && !bpf_verifier_log_full(log);
++	return log->level && log->kbuf && log->ubuf && !bpf_verifier_log_full(log);
+ }
+ 
+ __printf(2, 3) void bpf_verifier_log_write(struct bpf_verifier_env *env,

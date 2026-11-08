@@ -1,0 +1,179 @@
+From: a1beb60d6e3dfa2ea833e8aa42381a5b6e23a7eb
+Subject: [PATCH] bpf: rename bpf_compute_data_end into bpf_compute_data_pointers
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2017-09-25T00:25:50Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/a1beb60d6e3dfa2ea833e8aa42381a5b6e23a7eb
+
+---
+diff --git a/include/linux/filter.h b/include/linux/filter.h
+--- a/include/linux/filter.h
++++ b/include/linux/filter.h
+@@ -602,10 +602,13 @@ struct sk_msg_buff {
+ 	struct bpf_map *map;
+ };
+ 
+-/* compute the linear packet data range [data, data_end) which
+- * will be accessed by cls_bpf, act_bpf and lwt programs
++/* Compute the linear packet data range [data, data_end) which
++ * will be accessed by various program types (cls_bpf, act_bpf,
++ * lwt, ...). Subsystems allowing direct data access must (!)
++ * ensure that cb[] area can be written to when BPF program is
++ * invoked (otherwise cb[] save/restore is necessary).
+  */
+-static inline void bpf_compute_data_end(struct sk_buff *skb)
++static inline void bpf_compute_data_pointers(struct sk_buff *skb)
+ {
+ 	struct bpf_skb_data_end *cb = (struct bpf_skb_data_end *)skb->cb;
+ diff --git a/kernel/bpf/sockmap.c b/kernel/bpf/sockmap.c
+--- a/kernel/bpf/sockmap.c
++++ b/kernel/bpf/sockmap.c
+@@ -856,7 +856,7 @@ static int smap_verdict_func(struct smap_psock *psock, struct sk_buff *skb)
+ 	 */
+ 	TCP_SKB_CB(skb)->bpf.map = NULL;
+ 	skb->sk = psock->sock;
+-	bpf_compute_data_end_sk_skb(skb);
++	bpf_compute_data_pointers(skb);
+ 	preempt_disable();
+ 	rc = (*prog->bpf_func)(skb, prog->insnsi);
+ 	preempt_enable();
+@@ -1059,7 +1059,7 @@ static int smap_parse_func_strparser(struct strparser *strp,
+ 	 * any socket yet.
+ 	 */
+ 	skb->sk = psock->sock;
+-	bpf_compute_data_end_sk_skb(skb);
++	bpf_compute_data_pointers(skb);
+ 	rc = (*prog->bpf_func)(skb, prog->insnsi);
+ 	skb->sk = NULL;
+ 	rcu_read_unlock();diff --git a/net/bpf/test_run.c b/net/bpf/test_run.c
+--- a/net/bpf/test_run.c
++++ b/net/bpf/test_run.c
+@@ -135,7 +135,7 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
+ 	if (is_l2)
+ 		__skb_push(skb, hh_len);
+ 	if (is_direct_pkt_access)
+-		bpf_compute_data_end(skb);
++		bpf_compute_data_pointers(skb);
+ 	retval = bpf_test_run(prog, skb, repeat, &duration);
+ 	if (!is_l2) {
+ 		if (skb_headroom(skb) < hh_len) {diff --git a/net/core/filter.c b/net/core/filter.c
+--- a/net/core/filter.c
++++ b/net/core/filter.c
+@@ -1423,7 +1423,7 @@ static inline int bpf_try_make_writable(struct sk_buff *skb,
+ {
+ 	int err = __bpf_try_make_writable(skb, write_len);
+ 
+-	bpf_compute_data_end(skb);
++	bpf_compute_data_pointers(skb);
+ 	return err;
+ }
+ 
+@@ -2071,7 +2071,7 @@ BPF_CALL_3(bpf_skb_vlan_push, struct sk_buff *, skb, __be16, vlan_proto,
+ 	ret = skb_vlan_push(skb, vlan_proto, vlan_tci);
+ 	bpf_pull_mac_rcsum(skb);
+ 
+-	bpf_compute_data_end(skb);
++	bpf_compute_data_pointers(skb);
+ 	return ret;
+ }
+ 
+@@ -2093,7 +2093,7 @@ BPF_CALL_1(bpf_skb_vlan_pop, struct sk_buff *, skb)
+ 	ret = skb_vlan_pop(skb);
+ 	bpf_pull_mac_rcsum(skb);
+ 
+-	bpf_compute_data_end(skb);
++	bpf_compute_data_pointers(skb);
+ 	return ret;
+ }
+ 
+@@ -2286,7 +2286,7 @@ BPF_CALL_3(bpf_skb_change_proto, struct sk_buff *, skb, __be16, proto,
+ 	 * need to be verified first.
+ 	 */
+ 	ret = bpf_skb_proto_xlat(skb, proto);
+-	bpf_compute_data_end(skb);
++	bpf_compute_data_pointers(skb);
+ 	return ret;
+ }
+ 
+@@ -2408,7 +2408,7 @@ static int bpf_skb_adjust_net(struct sk_buff *skb, s32 len_diff)
+ 	ret = shrink ? bpf_skb_net_shrink(skb, len_diff_abs) :
+ 		       bpf_skb_net_grow(skb, len_diff_abs);
+ 
+-	bpf_compute_data_end(skb);
++	bpf_compute_data_pointers(skb);
+ 	return ret;
+ }
+ 
+@@ -2499,7 +2499,7 @@ BPF_CALL_3(bpf_skb_change_tail, struct sk_buff *, skb, u32, new_len,
+ 			skb_gso_reset(skb);
+ 	}
+ 
+-	bpf_compute_data_end(skb);
++	bpf_compute_data_pointers(skb);
+ 	return ret;
+ }
+ 
+@@ -2540,7 +2540,7 @@ BPF_CALL_3(bpf_skb_change_head, struct sk_buff *, skb, u32, head_room,
+ 		skb_reset_mac_len(skb);
+ 	}
+ 
+-	bpf_compute_data_end(skb);
++	bpf_compute_data_pointers(skb);
+ 	return 0;
+ }
+ diff --git a/net/core/flow_dissector.c b/net/core/flow_dissector.c
+--- a/net/core/flow_dissector.c
++++ b/net/core/flow_dissector.c
+@@ -600,7 +600,7 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
+ 		cb->qdisc_cb.flow_keys = &flow_keys;
+ 		flow_keys.nhoff = nhoff;
+ 
+-		bpf_compute_data_end((struct sk_buff *)skb);
++		bpf_compute_data_pointers((struct sk_buff *)skb);
+ 		result = BPF_PROG_RUN(attached, skb);
+ 
+ 		/* Restore state */diff --git a/net/core/lwt_bpf.c b/net/core/lwt_bpf.c
+--- a/net/core/lwt_bpf.c
++++ b/net/core/lwt_bpf.c
+@@ -51,7 +51,7 @@ static int run_lwt_bpf(struct sk_buff *skb, struct bpf_lwt_prog *lwt,
+ 	 */
+ 	preempt_disable();
+ 	rcu_read_lock();
+-	bpf_compute_data_end(skb);
++	bpf_compute_data_pointers(skb);
+ 	ret = bpf_prog_run_save_cb(lwt->prog, skb);
+ 	rcu_read_unlock();
+ diff --git a/net/sched/act_bpf.c b/net/sched/act_bpf.c
+--- a/net/sched/act_bpf.c
++++ b/net/sched/act_bpf.c
+@@ -49,11 +49,11 @@ static int tcf_bpf(struct sk_buff *skb, const struct tc_action *act,
+ 	filter = rcu_dereference(prog->filter);
+ 	if (at_ingress) {
+ 		__skb_push(skb, skb->mac_len);
+-		bpf_compute_data_end(skb);
++		bpf_compute_data_pointers(skb);
+ 		filter_res = BPF_PROG_RUN(filter, skb);
+ 		__skb_pull(skb, skb->mac_len);
+ 	} else {
+-		bpf_compute_data_end(skb);
++		bpf_compute_data_pointers(skb);
+ 		filter_res = BPF_PROG_RUN(filter, skb);
+ 	}
+ 	rcu_read_unlock();diff --git a/net/sched/cls_bpf.c b/net/sched/cls_bpf.c
+--- a/net/sched/cls_bpf.c
++++ b/net/sched/cls_bpf.c
+@@ -102,11 +102,11 @@ static int cls_bpf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
+ 		} else if (at_ingress) {
+ 			/* It is safe to push/pull even if skb_shared() */
+ 			__skb_push(skb, skb->mac_len);
+-			bpf_compute_data_end(skb);
++			bpf_compute_data_pointers(skb);
+ 			filter_res = BPF_PROG_RUN(prog->filter, skb);
+ 			__skb_pull(skb, skb->mac_len);
+ 		} else {
+-			bpf_compute_data_end(skb);
++			bpf_compute_data_pointers(skb);
+ 			filter_res = BPF_PROG_RUN(prog->filter, skb);
+ 		}
+ 

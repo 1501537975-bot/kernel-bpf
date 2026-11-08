@@ -1,0 +1,21 @@
+From: ba7eb72fa966905ea58030ecbe0cdc07f33c34d2
+Subject: [PATCH] bpf: Fix compiler warning on info.map_ids for 32bit platform
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2017-09-29T17:52:17Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/ba7eb72fa966905ea58030ecbe0cdc07f33c34d2
+
+---
+diff --git a/kernel/bpf/syscall.c b/kernel/bpf/syscall.c
+--- a/kernel/bpf/syscall.c
++++ b/kernel/bpf/syscall.c
+@@ -1678,7 +1678,7 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
+ 	info.nr_map_ids = prog->aux->used_map_cnt;
+ 	ulen = min_t(u32, info.nr_map_ids, ulen);
+ 	if (ulen) {
+-		u32 *user_map_ids = (u32 *)info.map_ids;
++		u32 __user *user_map_ids = u64_to_user_ptr(info.map_ids);
+ 		u32 i;
+ 
+ 		for (i = 0; i < ulen; i++)

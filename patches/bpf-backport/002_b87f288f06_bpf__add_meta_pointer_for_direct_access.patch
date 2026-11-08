@@ -1,0 +1,773 @@
+From: b87f288f06e538a769ad8578d7d76f59abc47db4
+Subject: [PATCH] bpf: add meta pointer for direct access
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2017-09-25T00:25:51Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/b87f288f06e538a769ad8578d7d76f59abc47db4
+
+---
+diff --git a/drivers/net/tun.c b/drivers/net/tun.c
+--- a/drivers/net/tun.c
++++ b/drivers/net/tun.c
+@@ -1335,6 +1335,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
+ 
+ 		xdp.data_hard_start = buf;
+ 		xdp.data = buf + pad;
++		xdp_set_data_meta_invalid(&xdp);
+ 		xdp.data_end = xdp.data + len;
+ 		orig_data = xdp.data;
+ 		act = bpf_prog_run_xdp(xdp_prog, &xdp);diff --git a/drivers/net/virtio_net.c b/drivers/net/virtio_net.c
+--- a/drivers/net/virtio_net.c
++++ b/drivers/net/virtio_net.c
+@@ -551,6 +551,7 @@ static struct sk_buff *receive_small(struct net_device *dev,
+ 
+ 		xdp.data_hard_start = buf + VIRTNET_RX_PAD + vi->hdr_len;
+ 		xdp.data = xdp.data_hard_start + xdp_headroom;
++		xdp_set_data_meta_invalid(&xdp);
+ 		xdp.data_end = xdp.data + len;
+ 		orig_data = xdp.data;
+ 		act = bpf_prog_run_xdp(xdp_prog, &xdp);
+@@ -673,6 +674,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
+ 		data = page_address(xdp_page) + offset;
+ 		xdp.data_hard_start = data - VIRTIO_XDP_HEADROOM + vi->hdr_len;
+ 		xdp.data = data + vi->hdr_len;
++		xdp_set_data_meta_invalid(&xdp);
+ 		xdp.data_end = xdp.data + (len - vi->hdr_len);
+ 		act = bpf_prog_run_xdp(xdp_prog, &xdp);
+ diff --git a/include/linux/bpf.h b/include/linux/bpf.h
+--- a/include/linux/bpf.h
++++ b/include/linux/bpf.h
+@@ -201,6 +201,7 @@ enum bpf_reg_type {
+ 	PTR_TO_MAP_VALUE,	 /* reg points to map element value */
+ 	PTR_TO_MAP_VALUE_OR_NULL,/* points to map elem value or NULL */
+ 	PTR_TO_STACK,		 /* reg == frame_pointer + offset */
++	PTR_TO_PACKET_META,	 /* skb->data - meta_len */
+ 	PTR_TO_PACKET,		 /* reg points to skb->data */
+ 	PTR_TO_PACKET_END,	 /* skb->data + headlen */
+ 	PTR_TO_FLOW_KEYS,	 /* reg points to bpf_flow_keys */diff --git a/include/linux/filter.h b/include/linux/filter.h
+--- a/include/linux/filter.h
++++ b/include/linux/filter.h
+@@ -577,12 +577,14 @@ static inline void bpf_jit_set_header_magic(struct bpf_binary_header *hdr)
+ 
+ struct bpf_skb_data_end {
+ 	struct qdisc_skb_cb qdisc_cb;
++	void *data_meta;
+ 	void *data_end;
+ };
+ 
+ struct xdp_buff {
+ 	void *data;
+ 	void *data_end;
++	void *data_meta;
+ 	void *data_hard_start;
+ };
+ 
+@@ -613,7 +615,8 @@ static inline void bpf_compute_data_pointers(struct sk_buff *skb)
+ 	struct bpf_skb_data_end *cb = (struct bpf_skb_data_end *)skb->cb;
+ 
+ 	BUILD_BUG_ON(sizeof(*cb) > FIELD_SIZEOF(struct sk_buff, cb));
+-	cb->data_end = skb->data + skb_headlen(skb);
++	cb->data_meta = skb->data - skb_metadata_len(skb);
++	cb->data_end  = skb->data + skb_headlen(skb);
+ }
+ 
+ static inline u8 *bpf_skb_cb(struct sk_buff *skb)
+@@ -834,8 +837,22 @@ int xdp_do_redirect(struct net_device *dev,
+ 		    struct bpf_prog *prog);
+ void xdp_do_flush_map(void);
+ 
++/* Drivers not supporting XDP metadata can use this helper, which
++ * rejects any room expansion for metadata as a result.
++ */
++static __always_inline void
++xdp_set_data_meta_invalid(struct xdp_buff *xdp)
++{
++	xdp->data_meta = xdp->data + 1;
++}
++
++static __always_inline bool
++xdp_data_meta_unsupported(const struct xdp_buff *xdp)
++{
++	return unlikely(xdp->data_meta > xdp->data);
++}
++
+ void bpf_warn_invalid_xdp_action(u32 act);
+-void bpf_warn_invalid_xdp_redirect(u32 ifindex);
+ 
+ struct sock *do_sk_redirect_map(struct sk_buff *skb);
+ struct sock *do_msg_redirect_map(struct sk_msg_buff *md);diff --git a/include/linux/skbuff.h b/include/linux/skbuff.h
+--- a/include/linux/skbuff.h
++++ b/include/linux/skbuff.h
+@@ -494,8 +494,9 @@ int skb_zerocopy_iter_stream(struct sock *sk, struct sk_buff *skb,
+  * the end of the header data, ie. at skb->end.
+  */
+ struct skb_shared_info {
+-	unsigned short	_unused;
+-	unsigned char	nr_frags;
++	__u8		__unused;
++	__u8		meta_len;
++	__u8		nr_frags;
+ 	__u8		tx_flags;
+ 	unsigned short	gso_size;
+ 	/* Warning: this field is not always filled in (UFO)! */
+@@ -3537,6 +3538,66 @@ static inline ktime_t net_invalid_timestamp(void)
+ 	return 0;
+ }
+ 
++static inline u8 skb_metadata_len(const struct sk_buff *skb)
++{
++	return skb_shinfo(skb)->meta_len;
++}
++
++static inline void *skb_metadata_end(const struct sk_buff *skb)
++{
++	return skb_mac_header(skb);
++}
++
++static inline bool __skb_metadata_differs(const struct sk_buff *skb_a,
++					  const struct sk_buff *skb_b,
++					  u8 meta_len)
++{
++	const void *a = skb_metadata_end(skb_a);
++	const void *b = skb_metadata_end(skb_b);
++	/* Using more efficient varaiant than plain call to memcmp(). */
++#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
++	u64 diffs = 0;
++	switch (meta_len) {
++#define __it(x, op) (x -= sizeof(u##op))
++#define __it_diff(a, b, op) (*(u##op *)__it(a, op)) ^ (*(u##op *)__it(b, op))
++	case 32: diffs |= __it_diff(a, b, 64);
++	case 24: diffs |= __it_diff(a, b, 64);
++	case 16: diffs |= __it_diff(a, b, 64);
++	case  8: diffs |= __it_diff(a, b, 64);
++		break;
++	case 28: diffs |= __it_diff(a, b, 64);
++	case 20: diffs |= __it_diff(a, b, 64);
++	case 12: diffs |= __it_diff(a, b, 64);
++	case  4: diffs |= __it_diff(a, b, 32);
++		break;
++	}
++	return diffs;
++#else
++	return memcmp(a - meta_len, b - meta_len, meta_len);
++#endif
++}
++
++static inline bool skb_metadata_differs(const struct sk_buff *skb_a,
++					const struct sk_buff *skb_b)
++{
++	u8 len_a = skb_metadata_len(skb_a);
++	u8 len_b = skb_metadata_len(skb_b);
++	if (!(len_a | len_b))
++		return false;
++	return len_a != len_b ?
++	       true : __skb_metadata_differs(skb_a, skb_b, len_a);
++}
++
++static inline void skb_metadata_set(struct sk_buff *skb, u8 meta_len)
++{
++	skb_shinfo(skb)->meta_len = meta_len;
++}
++
++static inline void skb_metadata_clear(struct sk_buff *skb)
++{
++	skb_metadata_set(skb, 0);
++}
++
+ struct sk_buff *skb_clone_sk(struct sk_buff *skb);
+ 
+ #ifdef CONFIG_NETWORK_PHY_TIMESTAMPINGdiff --git a/include/uapi/linux/bpf.h b/include/uapi/linux/bpf.h
+--- a/include/uapi/linux/bpf.h
++++ b/include/uapi/linux/bpf.h
+@@ -760,6 +760,12 @@ union bpf_attr {
+  * 	Return
+  * 		A 64-bit integer containing the current cgroup id based
+  * 		on the cgroup within which the current task is running.
++ *
++ * int bpf_xdp_adjust_meta(xdp_md, delta)
++ *     Adjust the xdp_md.data_meta by delta
++ *     @xdp_md: pointer to xdp_md
++ *     @delta: An positive/negative integer to be added to xdp_md.data_meta
++ *     Return: 0 on success or negative on error
+  */
+ #define __BPF_FUNC_MAPPER(FN)		\
+ 	FN(unspec),			\
+@@ -977,7 +983,7 @@ struct __sk_buff {
+ 	__u32 data_end;
+ 	__u32 napi_id;
+ 
+-	/* accessed by BPF_PROG_TYPE_sk_skb types */
++	/* Accessed by BPF_PROG_TYPE_sk_skb types from here to ... */
+ 	__u32 family;
+ 	__u32 remote_ip4;	/* Stored in network byte order */
+ 	__u32 local_ip4;	/* Stored in network byte order */
+@@ -987,6 +993,8 @@ struct __sk_buff {
+ 	__u32 local_port;	/* stored in host byte order */
+ 
+ 	__bpf_md_ptr(struct bpf_flow_keys *, flow_keys);
++	/* ... here. */
++	__u32 data_meta;
+ };
+ 
+ struct bpf_tunnel_key {
+@@ -1056,6 +1064,7 @@ enum xdp_action {
+ struct xdp_md {
+ 	__u32 data;
+ 	__u32 data_end;
++	__u32 data_meta;
+ };
+ 
+ enum sk_action {diff --git a/kernel/bpf/verifier.c b/kernel/bpf/verifier.c
+--- a/kernel/bpf/verifier.c
++++ b/kernel/bpf/verifier.c
+@@ -223,6 +223,12 @@ static __printf(2, 3) void verbose(struct bpf_verifier_env *env,
+ 	va_end(args);
+ }
+ 
++static bool type_is_pkt_pointer(enum bpf_reg_type type)
++{
++	return type == PTR_TO_PACKET ||
++	       type == PTR_TO_PACKET_META;
++}
++
+ /* string representation of 'enum bpf_reg_type' */
+ static const char * const reg_type_str[] = {
+ 	[NOT_INIT]		= "?",
+@@ -233,6 +239,7 @@ static const char * const reg_type_str[] = {
+ 	[PTR_TO_MAP_VALUE_OR_NULL] = "map_value_or_null",
+ 	[PTR_TO_STACK]		= "fp",
+ 	[PTR_TO_PACKET]		= "pkt",
++	[PTR_TO_PACKET_META]	= "pkt_meta",
+ 	[PTR_TO_PACKET_END]	= "pkt_end",
+ 	[PTR_TO_FLOW_KEYS]	= "flow_keys",
+ 	[PTR_TO_SOCKET]		= "sock",
+@@ -260,7 +267,7 @@ static void print_verifier_state(struct bpf_verifier_env *env,
+ 			verbose(env, "(id=%d", reg->id);
+ 			if (t != SCALAR_VALUE)
+ 				verbose(env, ",off=%d", reg->off);
+-			if (t == PTR_TO_PACKET)
++			if (type_is_pkt_pointer(t))
+ 				verbose(env, ",r=%d", reg->range);
+ 			else if (t == CONST_PTR_TO_MAP ||
+ 				 t == PTR_TO_MAP_VALUE ||
+@@ -474,6 +481,31 @@ static void __mark_reg_known_zero(struct bpf_reg_state *reg)
+ 	__mark_reg_known(reg, 0);
+ }
+ 
++static bool reg_is_pkt_pointer(const struct bpf_reg_state *reg)
++{
++	return type_is_pkt_pointer(reg->type);
++}
++
++static bool reg_is_pkt_pointer_any(const struct bpf_reg_state *reg)
++{
++	return reg_is_pkt_pointer(reg) ||
++	       reg->type == PTR_TO_PACKET_END;
++}
++
++/* Unmodified PTR_TO_PACKET[_META,_END] register from ctx access. */
++static bool reg_is_init_pkt_pointer(const struct bpf_reg_state *reg,
++				    enum bpf_reg_type which)
++{
++	/* The register can already have a range from prior markings.
++	 * This is fine as long as it hasn't been advanced from its
++	 * origin.
++	 */
++	return reg->type == which &&
++	       reg->id == 0 &&
++	       reg->off == 0 &&
++	       tnum_equals_const(reg->var_off, 0);
++}
++
+ static void mark_reg_known_zero(struct bpf_verifier_env *env,
+ 				struct bpf_reg_state *regs, u32 regno)
+ {
+@@ -774,6 +806,7 @@ static bool is_spillable_regtype(enum bpf_reg_type type)
+ 	case PTR_TO_STACK:
+ 	case PTR_TO_CTX:
+ 	case PTR_TO_PACKET:
++	case PTR_TO_PACKET_META:
+ 	case PTR_TO_PACKET_END:
+ 	case PTR_TO_FLOW_KEYS:
+ 	case CONST_PTR_TO_MAP:
+@@ -1236,7 +1269,10 @@ static int check_ptr_alignment(struct bpf_verifier_env *env,
+ 
+ 	switch (reg->type) {
+ 	case PTR_TO_PACKET:
+-		/* special case, because of NET_IP_ALIGN */
++	case PTR_TO_PACKET_META:
++		/* Special case, because of NET_IP_ALIGN. Given metadata sits
++		 * right in front, treat it the very same way.
++		 */
+ 		return check_pkt_ptr_alignment(env, reg, off, size, strict);
+ 	case PTR_TO_FLOW_KEYS:
+ 		pointer_desc = "flow keys ";
+@@ -1393,7 +1429,7 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
+ 		else
+ 			err = check_stack_read(env, state, off, size,
+ 						value_regno);
+-	} else if (reg->type == PTR_TO_PACKET) {
++	} else if (reg_is_pkt_pointer(reg)) {
+ 		if (t == BPF_WRITE && !may_access_direct_pkt_data(env, NULL, t)) {
+ 			return -EACCES;
+ 		}
+@@ -1554,6 +1590,7 @@ static int check_helper_mem_access(struct bpf_verifier_env *env, int regno,
+ 
+ 	switch (reg->type) {
+ 	case PTR_TO_PACKET:
++	case PTR_TO_PACKET_META:
+ 		return check_packet_access(env, regno, reg->off, access_size);
+ 	case PTR_TO_FLOW_KEYS:
+ 		return check_flow_keys_access(env, reg->off, access_size);
+@@ -1588,7 +1625,7 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
+ 		return 0;
+ 	}
+ 
+-	if (type == PTR_TO_PACKET &&
++	if (type_is_pkt_pointer(type) &&
+ 	    !may_access_direct_pkt_data(env, meta, BPF_READ)) {
+ 		verbose(env, "helper access to the packet is not allowed\n");
+ 		return -EACCES;
+@@ -1597,7 +1634,8 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
+ 	if (arg_type == ARG_PTR_TO_MAP_KEY ||
+ 	    arg_type == ARG_PTR_TO_MAP_VALUE) {
+ 		expected_type = PTR_TO_STACK;
+-		if (type != PTR_TO_PACKET && type != expected_type)
++		if (!type_is_pkt_pointer(type) &&
++		    type != expected_type)
+ 			goto err_type;
+ 	} else if (arg_type == ARG_CONST_SIZE ||
+ 		   arg_type == ARG_CONST_SIZE_OR_ZERO) {
+@@ -1628,7 +1666,8 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
+ 		 */
+ 		if (register_is_null(*reg))
+ 			/* final test in check_stack_boundary() */;
+-		else if (type != PTR_TO_PACKET && type != PTR_TO_MAP_VALUE &&
++		else if (!type_is_pkt_pointer(type) &&
++			 type != PTR_TO_MAP_VALUE &&
+ 			 type != expected_type)
+ 			goto err_type;
+ 		meta->raw_mode = arg_type == ARG_PTR_TO_UNINIT_MEM;
+@@ -1654,7 +1693,7 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
+ 			verbose(env, "invalid map_ptr to access map->key\n");
+ 			return -EACCES;
+ 		}
+-		if (type == PTR_TO_PACKET)
++		if (type_is_pkt_pointer(type))
+ 			err = check_packet_access(env, regno, reg->off,
+ 						  meta->map_ptr->key_size);
+ 		else
+@@ -1670,7 +1709,7 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
+ 			verbose(env, "invalid map_ptr to access map->value\n");
+ 			return -EACCES;
+ 		}
+-		if (type == PTR_TO_PACKET)
++		if (type_is_pkt_pointer(type))
+ 			err = check_packet_access(env, regno, reg->off,
+ 						  meta->map_ptr->value_size);
+ 		else
+@@ -1868,18 +1907,15 @@ static void clear_all_pkt_pointers(struct bpf_verifier_env *env)
+ 	int i;
+ 
+ 	for (i = 0; i < MAX_BPF_REG; i++)
+-		if (regs[i].type == PTR_TO_PACKET ||
+-		    regs[i].type == PTR_TO_PACKET_END)
++		if (reg_is_pkt_pointer_any(&regs[i]))
+ 			mark_reg_unknown(env, regs, i);
+ 
+ 	for (i = 0; i < state->allocated_stack / BPF_REG_SIZE; i++) {
+ 		if (state->stack[i].slot_type[0] != STACK_SPILL)
+ 			continue;
+ 		reg = &state->stack[i].spilled_ptr;
+-		if (reg->type != PTR_TO_PACKET &&
+-		    reg->type != PTR_TO_PACKET_END)
+-			continue;
+-		__mark_reg_unknown(reg);
++		if (reg_is_pkt_pointer_any(reg))
++			__mark_reg_unknown(reg);
+ 	}
+ }
+ 
+@@ -2450,7 +2486,7 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
+ 		dst_reg->var_off = tnum_add(ptr_reg->var_off, off_reg->var_off);
+ 		dst_reg->off = ptr_reg->off;
+ 		dst_reg->raw = ptr_reg->raw;
+-		if (ptr_reg->type == PTR_TO_PACKET) {
++		if (reg_is_pkt_pointer(ptr_reg)) {
+ 			dst_reg->id = ++env->id_gen;
+ 			/* something was added to pkt_ptr, set range to zero */
+ 			dst_reg->raw = 0;
+@@ -2509,7 +2545,7 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
+ 		dst_reg->var_off = tnum_sub(ptr_reg->var_off, off_reg->var_off);
+ 		dst_reg->off = ptr_reg->off;
+ 		dst_reg->raw = ptr_reg->raw;
+-		if (ptr_reg->type == PTR_TO_PACKET) {
++		if (reg_is_pkt_pointer(ptr_reg)) {
+ 			dst_reg->id = ++env->id_gen;
+ 			/* something was added to pkt_ptr, set range to zero */
+ 			if (smin_val < 0)
+@@ -3033,6 +3069,7 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
+ 
+ static void find_good_pkt_pointers(struct bpf_verifier_state *state,
+ 				   struct bpf_reg_state *dst_reg,
++				   enum bpf_reg_type type,
+ 				   bool range_right_open)
+ {
+ 	struct bpf_reg_state *regs = state->regs, *reg;
+@@ -3103,15 +3140,15 @@ static void find_good_pkt_pointers(struct bpf_verifier_state *state,
+ 	 * dst_reg->off is known < MAX_PACKET_OFF, therefore it fits in a u16.
+ 	 */
+ 	for (i = 0; i < MAX_BPF_REG; i++)
+-		if (regs[i].type == PTR_TO_PACKET && regs[i].id == dst_reg->id)
++		if (regs[i].type == type && regs[i].id == dst_reg->id)
+ 			/* keep the maximum range already checked */
+ 			regs[i].range = max(regs[i].range, new_range);
+ 
+ 	for (i = 0; i < state->allocated_stack / BPF_REG_SIZE; i++) {
+ 		if (state->stack[i].slot_type[0] != STACK_SPILL)
+ 			continue;
+ 		reg = &state->stack[i].spilled_ptr;
+-		if (reg->type == PTR_TO_PACKET && reg->id == dst_reg->id)
++		if (reg->type == type && reg->id == dst_reg->id)
+ 			reg->range = max(reg->range, new_range);
+ 	}
+ }
+@@ -3482,42 +3519,41 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
+ 		   dst_reg->type == PTR_TO_PACKET &&
+ 		   regs[insn->src_reg].type == PTR_TO_PACKET_END) {
+ 		/* pkt_data' > pkt_end */
+-		find_good_pkt_pointers(this_branch, dst_reg, false);
++		find_good_pkt_pointers(this_branch, dst_reg, PTR_TO_PACKET, false);
+ 	} else if (BPF_SRC(insn->code) == BPF_X && opcode == BPF_JGT &&
+ 		   dst_reg->type == PTR_TO_PACKET_END &&
+ 		   regs[insn->src_reg].type == PTR_TO_PACKET) {
+ 		/* pkt_end > pkt_data' */
+-		find_good_pkt_pointers(other_branch, &regs[insn->src_reg], true);
++		find_good_pkt_pointers(other_branch, &regs[insn->src_reg], PTR_TO_PACKET, true);
+ 	} else if (BPF_SRC(insn->code) == BPF_X && opcode == BPF_JLT &&
+ 		   dst_reg->type == PTR_TO_PACKET &&
+ 		   regs[insn->src_reg].type == PTR_TO_PACKET_END) {
+ 		/* pkt_data' < pkt_end */
+-		find_good_pkt_pointers(other_branch, dst_reg, true);
++		find_good_pkt_pointers(other_branch, dst_reg, PTR_TO_PACKET, true);
+ 	} else if (BPF_SRC(insn->code) == BPF_X && opcode == BPF_JLT &&
+ 		   dst_reg->type == PTR_TO_PACKET_END &&
+ 		   regs[insn->src_reg].type == PTR_TO_PACKET) {
+ 		/* pkt_end < pkt_data' */
+-		find_good_pkt_pointers(this_branch, &regs[insn->src_reg], false);
+-	} else if (BPF_SRC(insn->code) == BPF_X && opcode == BPF_JGE &&
+-		   dst_reg->type == PTR_TO_PACKET &&
+-		   regs[insn->src_reg].type == PTR_TO_PACKET_END) {
+-		/* pkt_data' >= pkt_end */
+-		find_good_pkt_pointers(this_branch, dst_reg, true);
++		find_good_pkt_pointers(this_branch, &regs[insn->src_reg],
++				       PTR_TO_PACKET, true);
++	} else if (BPF_SRC(insn->code) == BPF_X && opcode == BPF_JGT &&
++		   dst_reg->type == PTR_TO_PACKET_META &&
++		   reg_is_init_pkt_pointer(&regs[insn->src_reg], PTR_TO_PACKET)) {
++		find_good_pkt_pointers(this_branch, dst_reg, PTR_TO_PACKET_META, true);
++	} else if (BPF_SRC(insn->code) == BPF_X && opcode == BPF_JLT &&
++		   dst_reg->type == PTR_TO_PACKET_META &&
++		   reg_is_init_pkt_pointer(&regs[insn->src_reg], PTR_TO_PACKET)) {
++		find_good_pkt_pointers(other_branch, dst_reg, PTR_TO_PACKET_META, false);
+ 	} else if (BPF_SRC(insn->code) == BPF_X && opcode == BPF_JGE &&
+-		   dst_reg->type == PTR_TO_PACKET_END &&
+-		   regs[insn->src_reg].type == PTR_TO_PACKET) {
+-		/* pkt_end >= pkt_data' */
+-		find_good_pkt_pointers(other_branch, &regs[insn->src_reg], false);
+-	} else if (BPF_SRC(insn->code) == BPF_X && opcode == BPF_JLE &&
+-		   dst_reg->type == PTR_TO_PACKET &&
+-		   regs[insn->src_reg].type == PTR_TO_PACKET_END) {
+-		/* pkt_data' <= pkt_end */
+-		find_good_pkt_pointers(other_branch, dst_reg, false);
++		   reg_is_init_pkt_pointer(dst_reg, PTR_TO_PACKET) &&
++		   regs[insn->src_reg].type == PTR_TO_PACKET_META) {
++		find_good_pkt_pointers(other_branch, &regs[insn->src_reg],
++				       PTR_TO_PACKET_META, false);
+ 	} else if (BPF_SRC(insn->code) == BPF_X && opcode == BPF_JLE &&
+-		   dst_reg->type == PTR_TO_PACKET_END &&
+-		   regs[insn->src_reg].type == PTR_TO_PACKET) {
+-		/* pkt_end <= pkt_data' */
+-		find_good_pkt_pointers(this_branch, &regs[insn->src_reg], true);
++		   reg_is_init_pkt_pointer(dst_reg, PTR_TO_PACKET) &&
++		   regs[insn->src_reg].type == PTR_TO_PACKET_META) {
++		find_good_pkt_pointers(this_branch, &regs[insn->src_reg],
++				       PTR_TO_PACKET_META, true);
+ 	} else if (is_pointer_value(env, insn->dst_reg)) {
+ 		verbose(env, "R%d pointer comparison prohibited\n", insn->dst_reg);
+ 		return -EACCES;
+@@ -4006,8 +4042,9 @@ static bool regsafe(struct bpf_reg_state *rold, struct bpf_reg_state *rcur,
+ 			return false;
+ 		/* Check our ids match any regs they're supposed to */
+ 		return check_ids(rold->id, rcur->id, idmap);
++	case PTR_TO_PACKET_META:
+ 	case PTR_TO_PACKET:
+-		if (rcur->type != PTR_TO_PACKET)
++		if (rcur->type != rold->type)
+ 			return false;
+ 		/* We must have at least as much range as the old ptr
+ 		 * did, so that any accesses which were safe before arediff --git a/net/bpf/test_run.c b/net/bpf/test_run.c
+--- a/net/bpf/test_run.c
++++ b/net/bpf/test_run.c
+@@ -174,6 +174,7 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
+ 
+ 	xdp.data_hard_start = data;
+ 	xdp.data = data + XDP_PACKET_HEADROOM + NET_IP_ALIGN;
++	xdp.data_meta = xdp.data;
+ 	xdp.data_end = xdp.data + size;
+ 
+ 	retval = bpf_test_run(prog, &xdp, repeat, &duration);diff --git a/net/core/dev.c b/net/core/dev.c
+--- a/net/core/dev.c
++++ b/net/core/dev.c
+@@ -3929,8 +3929,8 @@ static int enqueue_to_backlog(struct sk_buff *skb, int cpu,
+ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
+ 				     struct bpf_prog *xdp_prog)
+ {
++	u32 metalen, act = XDP_DROP;
+ 	struct xdp_buff xdp;
+-	u32 act = XDP_DROP;
+ 	void *orig_data;
+ 	int hlen, off;
+ 	u32 mac_len;
+@@ -3941,8 +3941,24 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
+ 	if (skb_cloned(skb))
+ 		return XDP_PASS;
+ 
+-	if (skb_linearize(skb))
+-		goto do_drop;
++	/* XDP packets must be linear and must have sufficient headroom
++	 * of XDP_PACKET_HEADROOM bytes. This is the guarantee that also
++	 * native XDP provides, thus we need to do it here as well.
++	 */
++	if (skb_is_nonlinear(skb) ||
++	    skb_headroom(skb) < XDP_PACKET_HEADROOM) {
++		int hroom = XDP_PACKET_HEADROOM - skb_headroom(skb);
++		int troom = skb->tail + skb->data_len - skb->end;
++		/* In case we have to go down the path and also linearize,
++		 * then lets do the pskb_expand_head() work just once here.
++		 */
++		if (pskb_expand_head(skb,
++				     hroom > 0 ? ALIGN(hroom, NET_SKB_PAD) : 0,
++				     troom > 0 ? troom + 128 : 0, GFP_ATOMIC))
++			goto do_drop;
++		if (troom > 0 && __skb_linearize(skb))
++			goto do_drop;
++	}
+ 
+ 	/* The XDP program wants to see the packet starting at the MAC
+ 	 * header.
+@@ -3951,6 +3967,7 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
+ 	hlen = skb_headlen(skb) + mac_len;
+ 	xdp.data = skb->data - mac_len;
+ 	xdp.data_end = xdp.data + hlen;
++	xdp.data_meta = xdp.data;
+ 	xdp.data_hard_start = skb->data - skb_headroom(skb);
+ 	orig_data = xdp.data;
+ 
+@@ -3967,8 +3984,11 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
+ 	case XDP_REDIRECT:
+ 	case XDP_TX:
+ 		__skb_push(skb, mac_len);
+-		/* fall through */
++		break;
+ 	case XDP_PASS:
++		metalen = xdp.data - xdp.data_meta;
++		if (metalen)
++			skb_metadata_set(skb, metalen);
+ 		break;
+ 
+ 	default:
+@@ -5032,6 +5052,7 @@ static void gro_list_prepare(struct napi_struct *napi, struct sk_buff *skb)
+ 		diffs = (unsigned long)p->dev ^ (unsigned long)skb->dev;
+ 		diffs |= p->vlan_tci ^ skb->vlan_tci;
+ 		diffs |= skb_metadata_dst_cmp(p, skb);
++		diffs |= skb_metadata_differs(p, skb);
+ 		if (maclen == ETH_HLEN)
+ 			diffs |= compare_ether_header(skb_mac_header(p),
+ 						      skb_mac_header(skb));diff --git a/net/core/filter.c b/net/core/filter.c
+--- a/net/core/filter.c
++++ b/net/core/filter.c
+@@ -2553,15 +2553,26 @@ static const struct bpf_func_proto bpf_skb_change_head_proto = {
+ 	.arg3_type	= ARG_ANYTHING,
+ };
+ 
++static unsigned long xdp_get_metalen(const struct xdp_buff *xdp)
++{
++	return xdp_data_meta_unsupported(xdp) ? 0 :
++	       xdp->data - xdp->data_meta;
++}
++
+ BPF_CALL_2(bpf_xdp_adjust_head, struct xdp_buff *, xdp, int, offset)
+ {
++	unsigned long metalen = xdp_get_metalen(xdp);
++	void *data_start = xdp->data_hard_start + metalen;
+ 	void *data = xdp->data + offset;
+ 
+-	if (unlikely(data < xdp->data_hard_start ||
++	if (unlikely(data < data_start ||
+ 		     data > xdp->data_end - ETH_HLEN))
+ 		return -EINVAL;
+ 
+-	xdp->data = data;
++	if (metalen)
++		memmove(xdp->data_meta + offset,
++			xdp->data_meta, metalen);
++	xdp->data_meta += offset;
+ 
+ 	return 0;
+ }
+@@ -2574,6 +2585,29 @@ static const struct bpf_func_proto bpf_xdp_adjust_head_proto = {
+ 	.arg2_type	= ARG_ANYTHING,
+ };
+ 
++BPF_CALL_2(bpf_xdp_adjust_meta, struct xdp_buff *, xdp, int, offset)
++{
++	void *meta = xdp->data_meta + offset;
++	unsigned long metalen = xdp->data - meta;
++	if (xdp_data_meta_unsupported(xdp))
++		return -ENOTSUPP;
++	if (unlikely(meta < xdp->data_hard_start ||
++		     meta > xdp->data))
++		return -EINVAL;
++	if (unlikely((metalen & (sizeof(__u32) - 1)) ||
++		     (metalen > 32)))
++		return -EACCES;
++	xdp->data_meta = meta;
++	return 0;
++}
++static const struct bpf_func_proto bpf_xdp_adjust_meta_proto = {
++	.func		= bpf_xdp_adjust_meta,
++	.gpl_only	= false,
++	.ret_type	= RET_INTEGER,
++	.arg1_type	= ARG_PTR_TO_CTX,
++	.arg2_type	= ARG_ANYTHING,
++};
++
+ static int __bpf_tx_xdp(struct net_device *dev,
+ 			struct bpf_map *map,
+ 			struct xdp_buff *xdp,
+@@ -2804,7 +2838,8 @@ bool bpf_helper_changes_pkt_data(void *func)
+ 	    func == bpf_clone_redirect ||
+ 	    func == bpf_l3_csum_replace ||
+ 	    func == bpf_l4_csum_replace ||
+-	    func == bpf_xdp_adjust_head)
++	    func == bpf_xdp_adjust_head ||
++	    func == bpf_xdp_adjust_meta)
+ 		return true;
+ 
+ 	return false;
+@@ -3497,6 +3532,8 @@ xdp_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
+ 		return &bpf_get_smp_processor_id_proto;
+ 	case BPF_FUNC_xdp_adjust_head:
+ 		return &bpf_xdp_adjust_head_proto;
++	case BPF_FUNC_xdp_adjust_meta:
++		return &bpf_xdp_adjust_meta_proto;
+ 	case BPF_FUNC_redirect:
+ 		return &bpf_xdp_redirect_proto;
+ 	case BPF_FUNC_redirect_map:
+@@ -3656,6 +3693,7 @@ static bool bpf_skb_is_valid_access(int off, int size, enum bpf_access_type type
+ 	case bpf_ctx_range_till(struct __sk_buff, remote_ip4, remote_ip4):
+ 	case bpf_ctx_range_till(struct __sk_buff, local_ip4, local_ip4):
+ 	case bpf_ctx_range(struct __sk_buff, data):
++	case bpf_ctx_range(struct __sk_buff, data_meta):
+ 	case bpf_ctx_range(struct __sk_buff, data_end):
+ 		if (size != size_default)
+ 			return false;
+@@ -3687,6 +3725,7 @@ static bool sk_filter_is_valid_access(int off, int size,
+ 	switch (off) {
+ 	case bpf_ctx_range(struct __sk_buff, tc_classid):
+ 	case bpf_ctx_range(struct __sk_buff, data):
++	case bpf_ctx_range(struct __sk_buff, data_meta):
+ 	case bpf_ctx_range(struct __sk_buff, data_end):
+ 	case bpf_ctx_range_ptr(struct __sk_buff, flow_keys):
+ 	case bpf_ctx_range_till(struct __sk_buff, family, local_port):
+@@ -3714,6 +3753,7 @@ static bool lwt_is_valid_access(int off, int size,
+ 	case bpf_ctx_range(struct __sk_buff, tc_classid):
+ 	case bpf_ctx_range_ptr(struct __sk_buff, flow_keys):
+ 	case bpf_ctx_range_till(struct __sk_buff, family, local_port):
++	case bpf_ctx_range(struct __sk_buff, data_meta):
+ 		return false;
+ 	}
+ 
+@@ -3890,6 +3930,9 @@ static bool tc_cls_act_is_valid_access(int off, int size,
+ 	case bpf_ctx_range(struct __sk_buff, data):
+ 		info->reg_type = PTR_TO_PACKET;
+ 		break;
++	case bpf_ctx_range(struct __sk_buff, data_meta):
++		info->reg_type = PTR_TO_PACKET_META;
++		break;
+ 	case bpf_ctx_range(struct __sk_buff, data_end):
+ 		info->reg_type = PTR_TO_PACKET_END;
+ 		break;
+@@ -3925,6 +3968,9 @@ static bool xdp_is_valid_access(int off, int size,
+ 	case offsetof(struct xdp_md, data):
+ 		info->reg_type = PTR_TO_PACKET;
+ 		break;
++	case offsetof(struct xdp_md, data_meta):
++		info->reg_type = PTR_TO_PACKET_META;
++		break;
+ 	case offsetof(struct xdp_md, data_end):
+ 		info->reg_type = PTR_TO_PACKET_END;
+ 		break;
+@@ -4074,6 +4120,12 @@ static bool sk_skb_is_valid_access(int off, int size,
+ 				   const struct bpf_prog *prog,
+ 				   struct bpf_insn_access_aux *info)
+ {
++	switch (off) {
++	case bpf_ctx_range(struct __sk_buff, tc_classid):
++	case bpf_ctx_range(struct __sk_buff, data_meta):
++		return false;
++	}
++
+ 	if (type == BPF_WRITE) {
+ 		switch (off) {
+ 		case bpf_ctx_range(struct __sk_buff, tc_index):
+@@ -4087,8 +4139,6 @@ static bool sk_skb_is_valid_access(int off, int size,
+ 	switch (off) {
+ 	case bpf_ctx_range(struct __sk_buff, mark):
+ 	case bpf_ctx_range_ptr(struct __sk_buff, flow_keys):
+-	case bpf_ctx_range(struct __sk_buff, tc_classid):
+-		return false;
+ 	case bpf_ctx_range(struct __sk_buff, data):
+ 		info->reg_type = PTR_TO_PACKET;
+ 		break;
+@@ -4305,6 +4355,15 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
+ 				      offsetof(struct sk_buff, data));
+ 		break;
+ 
++	case offsetof(struct __sk_buff, data_meta):
++		off  = si->off;
++		off -= offsetof(struct __sk_buff, data_meta);
++		off += offsetof(struct sk_buff, cb);
++		off += offsetof(struct bpf_skb_data_end, data_meta);
++		*insn++ = BPF_LDX_MEM(BPF_SIZEOF(void *), si->dst_reg,
++				      si->src_reg, off);
++		break;
++
+ 	case offsetof(struct __sk_buff, data_end):
+ 		off  = si->off;
+ 		off -= offsetof(struct __sk_buff, data_end);
+@@ -4599,6 +4658,11 @@ static u32 xdp_convert_ctx_access(enum bpf_access_type type,
+ 				      si->dst_reg, si->src_reg,
+ 				      offsetof(struct xdp_buff, data));
+ 		break;
++	case offsetof(struct xdp_md, data_meta):
++		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct xdp_buff, data_meta),
++				      si->dst_reg, si->src_reg,
++				      offsetof(struct xdp_buff, data_meta));
++		break;
+ 	case offsetof(struct xdp_md, data_end):
+ 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct xdp_buff, data_end),
+ 				      si->dst_reg, si->src_reg,diff --git a/net/core/skbuff.c b/net/core/skbuff.c
+--- a/net/core/skbuff.c
++++ b/net/core/skbuff.c
+@@ -1522,6 +1522,8 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
+ 	skb->nohdr    = 0;
+ 	atomic_set(&skb_shinfo(skb)->dataref, 1);
+ 
++	skb_metadata_clear(skb);
++
+ 	/* It is not generally safe to change skb->truesize.
+ 	 * For the moment, we really care of rx path, or
+ 	 * when skb is orphaned (not attached to a socket).

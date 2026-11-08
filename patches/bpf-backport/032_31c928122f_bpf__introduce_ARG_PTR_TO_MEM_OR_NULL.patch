@@ -1,0 +1,39 @@
+From: 31c928122f3a0895e69916c8ab1bcd95b7f72bb6
+Subject: [PATCH] bpf: introduce ARG_PTR_TO_MEM_OR_NULL
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2017-11-22T18:32:53Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/31c928122f3a0895e69916c8ab1bcd95b7f72bb6
+
+---
+diff --git a/include/linux/bpf.h b/include/linux/bpf.h
+--- a/include/linux/bpf.h
++++ b/include/linux/bpf.h
+@@ -134,6 +134,7 @@ enum bpf_arg_type {
+ 	 * functions that access data on eBPF program stack
+ 	 */
+ 	ARG_PTR_TO_MEM,		/* pointer to valid memory (stack, packet, map value) */
++	ARG_PTR_TO_MEM_OR_NULL, /* pointer to valid memory or NULL */
+ 	ARG_PTR_TO_UNINIT_MEM,	/* pointer to memory does not need to be initialized,
+ 				 * helper function must fill all bytes or clear
+ 				 * them in error case.diff --git a/kernel/bpf/verifier.c b/kernel/bpf/verifier.c
+--- a/kernel/bpf/verifier.c
++++ b/kernel/bpf/verifier.c
+@@ -1928,13 +1928,15 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
+ 		if (type != expected_type)
+ 			goto err_type;
+ 	} else if (arg_type == ARG_PTR_TO_MEM ||
++		   arg_type == ARG_PTR_TO_MEM_OR_NULL ||
+ 		   arg_type == ARG_PTR_TO_UNINIT_MEM) {
+ 		expected_type = PTR_TO_STACK;
+ 		/* One exception here. In case function allows for NULL to be
+ 		 * passed in as argument, it's a SCALAR_VALUE type. Final test
+ 		 * happens during stack boundary checking.
+ 		 */
+-		if (register_is_null(reg))
++		if (register_is_null(reg) &&
++		    arg_type == ARG_PTR_TO_MEM_OR_NULL)
+ 			/* final test in check_stack_boundary() */;
+ 		else if (!type_is_pkt_pointer(type) &&
+ 			 type != PTR_TO_MAP_VALUE &&

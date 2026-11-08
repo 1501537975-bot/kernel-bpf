@@ -1,0 +1,22 @@
+From: 886115a8379caf34574539b11c0cebc2d717bb75
+Subject: [PATCH] netfilter: nfnetlink_log: silence bogus compiler warning
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2023-10-05T08:53:08Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/886115a8379caf34574539b11c0cebc2d717bb75
+
+---
+diff --git a/net/netfilter/nfnetlink_log.c b/net/netfilter/nfnetlink_log.c
+--- a/net/netfilter/nfnetlink_log.c
++++ b/net/netfilter/nfnetlink_log.c
+@@ -637,8 +637,8 @@ nfulnl_log_packet(struct net *net,
+ 	unsigned int plen;
+ 	struct nfnl_log_net *log = nfnl_log_pernet(net);
+ 	const struct nfnl_ct_hook *nfnl_ct = NULL;
++	enum ip_conntrack_info ctinfo = 0;
+ 	struct nf_conn *ct = NULL;
+-	enum ip_conntrack_info ctinfo;
+ 
+ 	if (li_user && li_user->type == NF_LOG_TYPE_ULOG)
+ 		li = li_user;

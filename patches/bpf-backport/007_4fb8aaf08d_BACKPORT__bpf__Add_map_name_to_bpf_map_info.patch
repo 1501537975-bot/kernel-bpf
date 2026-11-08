@@ -1,0 +1,52 @@
+From: 4fb8aaf08dfe6bb95f4bb0e2b7fe851a520ebbf9
+Subject: [PATCH] BACKPORT: bpf: Add map_name to bpf_map_info
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2017-09-27T21:37:53Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/4fb8aaf08dfe6bb95f4bb0e2b7fe851a520ebbf9
+
+---
+diff --git a/include/linux/bpf.h b/include/linux/bpf.h
+--- a/include/linux/bpf.h
++++ b/include/linux/bpf.h
+@@ -71,7 +71,7 @@ struct bpf_map {
+ 	atomic_t refcnt;
+ 	atomic_t usercnt;
+ 	struct work_struct work;
+-	char name[BPF_OBJ_NAME_LEN];
++	u8 name[BPF_OBJ_NAME_LEN];
+ };
+ 
+ /* function argument constraints */diff --git a/include/uapi/linux/bpf.h b/include/uapi/linux/bpf.h
+--- a/include/uapi/linux/bpf.h
++++ b/include/uapi/linux/bpf.h
+@@ -247,7 +247,7 @@ union bpf_attr {
+ 		__u32	numa_node;	/* numa node (effective only if
+ 					 * BPF_F_NUMA_NODE is set).
+ 					 */
+-		char	map_name[BPF_OBJ_NAME_LEN];
++		__u8	map_name[BPF_OBJ_NAME_LEN];
+ 	};
+ 
+ 	struct { /* anonymous struct used by BPF_MAP_*_ELEM commands */
+@@ -1018,7 +1018,7 @@ struct bpf_map_info {
+ 	__u32 value_size;
+ 	__u32 max_entries;
+ 	__u32 map_flags;
+-	char  name[BPF_OBJ_NAME_LEN];
++	__u8  name[BPF_OBJ_NAME_LEN];
+ } __attribute__((aligned(8)));
+ 
+ /* User bpf_sock_addr struct to access socket fields and sockaddr struct passeddiff --git a/kernel/bpf/syscall.c b/kernel/bpf/syscall.c
+--- a/kernel/bpf/syscall.c
++++ b/kernel/bpf/syscall.c
+@@ -381,7 +381,7 @@ static int bpf_obj_name_cpy(char *dst, const char *src)
+ 	return 0;
+ }
+ 
+-#define BPF_MAP_CREATE_LAST_FIELD numa_node
++#define BPF_MAP_CREATE_LAST_FIELD map_name
+ /* called via syscall */
+ static int map_create(union bpf_attr *attr)
+ {

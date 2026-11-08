@@ -220,7 +220,16 @@ fi
 # ─────────────────────────────────────────────────────────────
 if [ "$ENABLE_BPF" = "yes" ]; then
   log "[4/7] 回合 5.10 BPF + sys_clone3"
-  bash "$SCRIPTS_DIR/backport_bpf.sh" || die "BPF 回合失败"
+  # BPF 回合是**可选增强**:
+  #   A14 (ColorOS 14 / OneUI 6 / OriginOS 4) 最低要求就是 4.14, 原厂 BPF 够用,
+  #   不需要 BPF 回合 -> 失败不该阻断整个构建。
+  #   A16/A17 才需要 4.16+ 的 socket filter, 那时再单独攻。
+  if bash "$SCRIPTS_DIR/backport_bpf.sh"; then
+    ok "BPF 回合完成"
+  else
+    warn "BPF 回合未完全成功 (不影响 A14 档; A16/A17 需要它)"
+    warn "继续构建 -- 产出的内核可用于 ColorOS 14 / OneUI 6 / OriginOS 4"
+  fi
   # BPF 需要这些内核选项
   # config 稍后统一设置 (此时 .config 尚未生成)
   ok "BPF 源码回合完成, config 稍后统一设置"

@@ -1,0 +1,59 @@
+From: 3f1502ad0cd1ff72106c822e365dc412e298e7bc
+Subject: [PATCH] bpf: offload: free program id when device disappears
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2017-12-28T02:39:07Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/3f1502ad0cd1ff72106c822e365dc412e298e7bc
+
+---
+diff --git a/include/linux/bpf.h b/include/linux/bpf.h
+--- a/include/linux/bpf.h
++++ b/include/linux/bpf.h
+@@ -392,6 +392,8 @@ void bpf_prog_put(struct bpf_prog *prog);
+ int __bpf_prog_charge(struct user_struct *user, u32 pages);
+ void __bpf_prog_uncharge(struct user_struct *user, u32 pages);
+ 
++void bpf_prog_free_id(struct bpf_prog *prog, bool do_idr_lock);
++
+ struct bpf_map *bpf_map_get_with_uref(u32 ufd);
+ struct bpf_map *__bpf_map_get(struct fd f);
+ struct bpf_map * __must_check bpf_map_inc(struct bpf_map *map, bool uref);diff --git a/kernel/bpf/offload.c b/kernel/bpf/offload.c
+--- a/kernel/bpf/offload.c
++++ b/kernel/bpf/offload.c
+@@ -106,6 +106,9 @@ static void __bpf_prog_offload_destroy(struct bpf_prog *prog)
+ 	if (offload->dev_state)
+ 		WARN_ON(__bpf_offload_ndo(prog, BPF_OFFLOAD_DESTROY, &data));
+ 
++	/* Make sure BPF_PROG_GET_NEXT_ID can't find this dead program */
++	bpf_prog_free_id(prog, true);
++
+ 	offload->dev_state = false;
+ 	list_del_init(&offload->offloads);
+ 	offload->netdev = NULL;diff --git a/kernel/bpf/syscall.c b/kernel/bpf/syscall.c
+--- a/kernel/bpf/syscall.c
++++ b/kernel/bpf/syscall.c
+@@ -968,9 +968,13 @@ static int bpf_prog_alloc_id(struct bpf_prog *prog)
+ 	return id > 0 ? 0 : id;
+ }
+ 
+-static void bpf_prog_free_id(struct bpf_prog *prog, bool do_idr_lock)
++void bpf_prog_free_id(struct bpf_prog *prog, bool do_idr_lock)
+ {
+-	/* cBPF to eBPF migrations are currently not in the idr store. */
++	/* cBPF to eBPF migrations are currently not in the idr store.
++	 * Offloaded programs are removed from the store when their device
++	 * disappears - even if someone grabs an fd to them they are unusable,
++	 * simply waiting for refcnt to drop to be freed.
++	 */
+ 	if (!prog->aux->id)
+ 		return;
+ 
+@@ -981,6 +985,7 @@ static void bpf_prog_free_id(struct bpf_prog *prog, bool do_idr_lock)
+ 
+ 	idr_remove(&prog_idr, prog->aux->id);
+ 
++	prog->aux->id = 0;
+ 	if (do_idr_lock)
+ 		spin_unlock_bh(&prog_idr_lock);
+ 	else

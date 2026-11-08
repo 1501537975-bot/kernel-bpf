@@ -1,0 +1,125 @@
+From: d967d6465332c3fed067a0a35cfd47e8a539346b
+Subject: [PATCH] bpf: enable cgroup local storage map pretty print with kind_flag
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2018-12-16T06:13:52Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/d967d6465332c3fed067a0a35cfd47e8a539346b
+
+---
+diff --git a/include/linux/btf.h b/include/linux/btf.h
+--- a/include/linux/btf.h
++++ b/include/linux/btf.h
+@@ -7,6 +7,7 @@
+ #include <linux/types.h>
+ 
+ struct btf;
++struct btf_member;
+ struct btf_type;
+ union bpf_attr;
+ 
+@@ -46,7 +47,9 @@ void btf_type_seq_show(const struct btf *btf, u32 type_id, void *obj,
+ 		       struct seq_file *m);
+ int btf_get_fd_by_id(u32 id);
+ u32 btf_id(const struct btf *btf);
+-bool btf_type_is_reg_int(const struct btf_type *t, u32 expected_size);
++bool btf_member_is_reg_int(const struct btf *btf, const struct btf_type *s,
++			   const struct btf_member *m,
++			   u32 expected_offset, u32 expected_size);
+ 
+ #ifdef CONFIG_BPF_SYSCALL
+ const struct btf_type *btf_type_by_id(const struct btf *btf, u32 type_id);diff --git a/kernel/bpf/btf.c b/kernel/bpf/btf.c
+--- a/kernel/bpf/btf.c
++++ b/kernel/bpf/btf.c
+@@ -545,22 +545,39 @@ static bool btf_type_int_is_regular(const struct btf_type *t)
+ }
+ 
+ /*
+- * Check that given type is a regular int and has the expected size.
++* Check that given struct member is a regular int with expected
++ * offset and size.
+  */
+-bool btf_type_is_reg_int(const struct btf_type *t, u32 expected_size)
++bool btf_member_is_reg_int(const struct btf *btf, const struct btf_type *s,
++			   const struct btf_member *m,
++			   u32 expected_offset, u32 expected_size)
+ {
+-	u8 nr_bits, nr_bytes;
+-	u32 int_data;
++	const struct btf_type *t;
++	u32 id, int_data;
++	u8 nr_bits;
+ 
+-	if (!btf_type_is_int(t))
++	id = m->type;
++	t = btf_type_id_size(btf, &id, NULL);
++	if (!t || !btf_type_is_int(t))
+ 		return false;
+ 
+ 	int_data = btf_type_int(t);
+ 	nr_bits = BTF_INT_BITS(int_data);
+-	nr_bytes = BITS_ROUNDUP_BYTES(nr_bits);
+-	if (BITS_PER_BYTE_MASKED(nr_bits) ||
+-	    BTF_INT_OFFSET(int_data) ||
+-	    nr_bytes != expected_size)
++	if (btf_type_kflag(s)) {
++		u32 bitfield_size = BTF_MEMBER_BITFIELD_SIZE(m->offset);
++		u32 bit_offset = BTF_MEMBER_BIT_OFFSET(m->offset);
++		/* if kflag set, int should be a regular int and
++		 * bit offset should be at byte boundary.
++		 */
++		return !bitfield_size &&
++		       BITS_ROUNDUP_BYTES(bit_offset) == expected_offset &&
++		       BITS_ROUNDUP_BYTES(nr_bits) == expected_size;
++	}
++	if (BTF_INT_OFFSET(int_data) ||
++	    BITS_PER_BYTE_MASKED(m->offset) ||
++	    BITS_ROUNDUP_BYTES(m->offset) != expected_offset ||
++	    BITS_PER_BYTE_MASKED(nr_bits) ||
++	    BITS_ROUNDUP_BYTES(nr_bits) != expected_size)
+ 		return false;
+ 
+ 	return true;diff --git a/kernel/bpf/local_storage.c b/kernel/bpf/local_storage.c
+--- a/kernel/bpf/local_storage.c
++++ b/kernel/bpf/local_storage.c
+@@ -306,9 +306,9 @@ static int cgroup_storage_check_btf(const struct bpf_map *map,
+ 				    const struct btf_type *key_type,
+ 				    const struct btf_type *value_type)
+ {
+-	const struct btf_type *t;
+ 	struct btf_member *m;
+-	u32 id, size;
++	u32 offset, size;
++
+ 	/* Key is expected to be of struct bpf_cgroup_storage_key type,
+ 	 * which is:
+ 	 * struct bpf_cgroup_storage_key {
+@@ -326,25 +326,17 @@ static int cgroup_storage_check_btf(const struct bpf_map *map,
+ 	 * The first field must be a 64 bit integer at 0 offset.
+ 	 */
+ 	m = (struct btf_member *)(key_type + 1);
+-	if (m->offset)
+-		return -EINVAL;
+-	id = m->type;
+-	t = btf_type_id_size(btf, &id, NULL);
+ 	size = FIELD_SIZEOF(struct bpf_cgroup_storage_key, cgroup_inode_id);
+-	if (!t || !btf_type_is_reg_int(t, size))
++	if (!btf_member_is_reg_int(btf, key_type, m, 0, size))
+ 		return -EINVAL;
+ 	/*
+ 	 * The second field must be a 32 bit integer at 64 bit offset.
+ 	 */
+ 	m++;
+-	if (m->offset != offsetof(struct bpf_cgroup_storage_key, attach_type) *
+-	    BITS_PER_BYTE)
+-		return -EINVAL;
+-	id = m->type;
+-	t = btf_type_id_size(btf, &id, NULL);
++	offset = offsetof(struct bpf_cgroup_storage_key, attach_type);
+ 	size = FIELD_SIZEOF(struct bpf_cgroup_storage_key, attach_type);
+ 
+-	if (!t || !btf_type_is_reg_int(t, size))
++	if (!btf_member_is_reg_int(btf, key_type, m, offset, size))
+ 		return -EINVAL;
+ 
+ 	return 0;

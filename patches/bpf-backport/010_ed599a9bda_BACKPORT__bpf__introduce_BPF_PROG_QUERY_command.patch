@@ -1,0 +1,246 @@
+From: ed599a9bdaaf162be5e788c111a6bde7ecf18f9c
+Subject: [PATCH] BACKPORT: bpf: introduce BPF_PROG_QUERY command
+
+上游 backport, 来自 mt6873-dev/android_kernel_xiaomi_mt6885@cgroup-v2
+原提交日期: 2017-10-03T05:50:22Z
+
+原提交: https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885/commit/ed599a9bdaaf162be5e788c111a6bde7ecf18f9c
+
+---
+diff --git a/include/linux/bpf-cgroup.h b/include/linux/bpf-cgroup.h
+--- a/include/linux/bpf-cgroup.h
++++ b/include/linux/bpf-cgroup.h
+@@ -45,12 +45,16 @@ int __cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
+ 			enum bpf_attach_type type, u32 flags);
+ int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
+ 			enum bpf_attach_type type, u32 flags);
++int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
++		       union bpf_attr __user *uattr);
+ 
+ /* Wrapper for __cgroup_bpf_*() protected by cgroup_mutex */
+ int cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
+ 		      enum bpf_attach_type type, u32 flags);
+ int cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
+ 		      enum bpf_attach_type type, u32 flags);
++int cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
++		     union bpf_attr __user *uattr);
+ 
+ int __cgroup_bpf_run_filter_skb(struct sock *sk,
+ 				struct sk_buff *skb,diff --git a/include/linux/bpf.h b/include/linux/bpf.h
+--- a/include/linux/bpf.h
++++ b/include/linux/bpf.h
+@@ -292,6 +292,9 @@ struct bpf_prog_array {
+ 
+ struct bpf_prog_array *bpf_prog_array_alloc(u32 prog_cnt, gfp_t flags);
+ void bpf_prog_array_free(struct bpf_prog_array __rcu *progs);
++int bpf_prog_array_length(struct bpf_prog_array __rcu *progs);
++int bpf_prog_array_copy_to_user(struct bpf_prog_array __rcu *progs,
++				__u32 __user *prog_ids, u32 cnt);
+ 
+ void bpf_prog_array_delete_safe(struct bpf_prog_array __rcu *progs,
+ 				struct bpf_prog *old_prog);diff --git a/include/uapi/linux/bpf.h b/include/uapi/linux/bpf.h
+--- a/include/uapi/linux/bpf.h
++++ b/include/uapi/linux/bpf.h
+@@ -93,6 +93,7 @@ enum bpf_cmd {
+ 	BPF_PROG_GET_FD_BY_ID,
+ 	BPF_MAP_GET_FD_BY_ID,
+ 	BPF_OBJ_GET_INFO_BY_FD,
++	BPF_PROG_QUERY,
+ 	BPF_BTF_LOAD = 18,
+ };
+ 
+@@ -213,6 +214,9 @@ enum bpf_attach_type {
+ /* Specify numa node during map creation */
+ #define BPF_F_NUMA_NODE		(1U << 2)
+ 
++/* flags for BPF_PROG_QUERY */
++#define BPF_F_QUERY_EFFECTIVE	(1U << 0)
++
+ #define BPF_OBJ_NAME_LEN 16U
+ 
+ /* Flags for accessing BPF object */
+@@ -304,6 +308,15 @@ union bpf_attr {
+ 		__aligned_u64	info;
+ 	} info;
+ 
++	struct { /* anonymous struct used by BPF_PROG_QUERY command */
++		__u32		target_fd;	/* container object to query */
++		__u32		attach_type;
++		__u32		query_flags;
++		__u32		attach_flags;
++		__aligned_u64	prog_ids;
++		__u32		prog_cnt;
++	} query;
++
+ 	struct { /* anonymous struct for BPF_BTF_LOAD */
+ 		__aligned_u64	btf;
+ 		__aligned_u64	btf_log_buf;diff --git a/kernel/bpf/cgroup.c b/kernel/bpf/cgroup.c
+--- a/kernel/bpf/cgroup.c
++++ b/kernel/bpf/cgroup.c
+@@ -383,6 +383,52 @@ int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
+ 	return err;
+ }
+ 
++/* Must be called with cgroup_mutex held to avoid races. */
++int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
++		       union bpf_attr __user *uattr)
++{
++	__u32 __user *prog_ids = u64_to_user_ptr(attr->query.prog_ids);
++	enum bpf_attach_type type = attr->query.attach_type;
++	struct list_head *progs = &cgrp->bpf.progs[type];
++	u32 flags = cgrp->bpf.flags[type];
++	int cnt, ret = 0, i;
++
++	if (attr->query.query_flags & BPF_F_QUERY_EFFECTIVE)
++		cnt = bpf_prog_array_length(cgrp->bpf.effective[type]);
++	else
++		cnt = prog_list_length(progs);
++
++	if (copy_to_user(&uattr->query.attach_flags, &flags, sizeof(flags)))
++		return -EFAULT;
++	if (copy_to_user(&uattr->query.prog_cnt, &cnt, sizeof(cnt)))
++		return -EFAULT;
++	if (attr->query.prog_cnt == 0 || !prog_ids || !cnt)
++		/* return early if user requested only program count + flags */
++		return 0;
++	if (attr->query.prog_cnt < cnt) {
++		cnt = attr->query.prog_cnt;
++		ret = -ENOSPC;
++	}
++
++	if (attr->query.query_flags & BPF_F_QUERY_EFFECTIVE) {
++		return bpf_prog_array_copy_to_user(cgrp->bpf.effective[type],
++						   prog_ids, cnt);
++	} else {
++		struct bpf_prog_list *pl;
++		u32 id;
++
++		i = 0;
++		list_for_each_entry(pl, progs, node) {
++			id = pl->prog->aux->id;
++			if (copy_to_user(prog_ids + i, &id, sizeof(id)))
++				return -EFAULT;
++			if (++i == cnt)
++				break;
++		}
++	}
++	return ret;
++}
++
+ /**
+  * __cgroup_bpf_run_filter_skb() - Run a program for packet filtering
+  * @sk: The socket sending or receiving trafficdiff --git a/kernel/bpf/core.c b/kernel/bpf/core.c
+--- a/kernel/bpf/core.c
++++ b/kernel/bpf/core.c
+@@ -1635,6 +1635,44 @@ int bpf_prog_array_copy(struct bpf_prog_array __rcu *old_array,
+ 	return 0;
+ }
+ 
++int bpf_prog_array_length(struct bpf_prog_array __rcu *progs)
++{
++	struct bpf_prog **prog;
++	u32 cnt = 0;
++
++	rcu_read_lock();
++	prog = rcu_dereference(progs)->progs;
++	for (; *prog; prog++)
++		cnt++;
++	rcu_read_unlock();
++	return cnt;
++}
++
++int bpf_prog_array_copy_to_user(struct bpf_prog_array __rcu *progs,
++				__u32 __user *prog_ids, u32 cnt)
++{
++	struct bpf_prog **prog;
++	u32 i = 0, id;
++
++	rcu_read_lock();
++	prog = rcu_dereference(progs)->progs;
++	for (; *prog; prog++) {
++		id = (*prog)->aux->id;
++		if (copy_to_user(prog_ids + i, &id, sizeof(id))) {
++			rcu_read_unlock();
++			return -EFAULT;
++		}
++		if (++i == cnt) {
++			prog++;
++			break;
++		}
++	}
++	rcu_read_unlock();
++	if (*prog)
++		return -ENOSPC;
++	return 0;
++}
++
+ static void bpf_prog_free_deferred(struct work_struct *work)
+ {
+ 	struct bpf_prog_aux *aux;diff --git a/kernel/bpf/syscall.c b/kernel/bpf/syscall.c
+--- a/kernel/bpf/syscall.c
++++ b/kernel/bpf/syscall.c
+@@ -1421,6 +1421,37 @@ static int bpf_prog_detach(const union bpf_attr *attr)
+ 	return ret;
+ }
+ 
++#define BPF_PROG_QUERY_LAST_FIELD query.prog_cnt
++
++static int bpf_prog_query(const union bpf_attr *attr,
++			  union bpf_attr __user *uattr)
++{
++	struct cgroup *cgrp;
++	int ret;
++
++	if (!capable(CAP_NET_ADMIN))
++		return -EPERM;
++	if (CHECK_ATTR(BPF_PROG_QUERY))
++		return -EINVAL;
++	if (attr->query.query_flags & ~BPF_F_QUERY_EFFECTIVE)
++		return -EINVAL;
++
++	switch (attr->query.attach_type) {
++	case BPF_CGROUP_INET_INGRESS:
++	case BPF_CGROUP_INET_EGRESS:
++	case BPF_CGROUP_INET_SOCK_CREATE:
++	case BPF_CGROUP_SOCK_OPS:
++		break;
++	default:
++		return -EINVAL;
++	}
++	cgrp = cgroup_get_from_fd(attr->query.target_fd);
++	if (IS_ERR(cgrp))
++		return PTR_ERR(cgrp);
++	ret = cgroup_bpf_query(cgrp, attr, uattr);
++	cgroup_put(cgrp);
++	return ret;
++}
+ #endif /* CONFIG_CGROUP_BPF */
+ 
+ #define BPF_PROG_TEST_RUN_LAST_FIELD test.duration
+@@ -1745,6 +1776,9 @@ SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, siz
+ 	case BPF_PROG_DETACH:
+ 		err = bpf_prog_detach(&attr);
+ 		break;
++	case BPF_PROG_QUERY:
++		err = bpf_prog_query(&attr, uattr);
++		break;
+ #endif
+ 	case BPF_PROG_TEST_RUN:
+ 		err = bpf_prog_test_run(&attr, uattr);diff --git a/kernel/cgroup/cgroup.c b/kernel/cgroup/cgroup.c
+--- a/kernel/cgroup/cgroup.c
++++ b/kernel/cgroup/cgroup.c
+@@ -6125,4 +6125,14 @@ int cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
+ 	mutex_unlock(&cgroup_mutex);
+ 	return ret;
+ }
++int cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
++		     union bpf_attr __user *uattr)
++{
++	int ret;
++
++	mutex_lock(&cgroup_mutex);
++	ret = __cgroup_bpf_query(cgrp, attr, uattr);
++	mutex_unlock(&cgroup_mutex);
++	return ret;
++}
+ #endif /* CONFIG_CGROUP_BPF */
