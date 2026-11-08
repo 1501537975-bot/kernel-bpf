@@ -99,8 +99,15 @@ if [ -n "${CLANG_PREBUILT_BIN:-}" ] && [ -x "${CLANG_PREBUILT_BIN}/clang" ]; the
 elif command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
   CROSS="aarch64-linux-gnu-"
   CC_CMD="aarch64-linux-gnu-gcc"
+  # 注意: GCC 路径下不能用 ld.lld!
+  # 内核的 prepare-compiler-check 会用 $(CC) ... -c 试编译来探测
+  # -fstack-protector-strong 是否可用 (Makefile:1284), 而 cc-option 里
+  # 带的是 $(LD) —— GCC 配 lld 会让这个探测失败:
+  #   "Cannot use CONFIG_CC_STACKPROTECTOR_STRONG: -fstack-protector-strong
+  #    not supported by compiler"
+  # 用 GCC 自带的 ld, 它支持 -fstack-protector-strong。
   LD_CMD="aarch64-linux-gnu-ld"
-  ok "使用 GCC 交叉工具链: $($CC_CMD --version | head -1)"
+  ok "使用 GCC 交叉工具链: $($CC_CMD --version | head -1) (ld=$LD_CMD)"
 elif command -v clang >/dev/null 2>&1; then
   CROSS="aarch64-linux-gnu-"
   CC_CMD="clang --target=aarch64-linux-gnu"

@@ -82,11 +82,10 @@ else
 fi
 
 # ── 3. BTF 支持开关（bpfloader 需要内核导出 BTF）─────────────
-log "确保 BTF 相关配置"
-grep -q "^CONFIG_DEBUG_INFO_BTF=y" .config 2>/dev/null || \
-  echo "CONFIG_DEBUG_INFO_BTF=y" >> .config
-grep -q "^CONFIG_PAHOLE_VERSION=y" .config 2>/dev/null || \
-  echo "CONFIG_PAHOLE_VERSION=y" >> .config
+# 注意: 这里不能直接写 .config —— 脚本运行在 defconfig 之前, .config 尚不存在
+# (写了也无效, 且会刷出 "grep: .config: No such file or directory" 噪音)。
+# BTF/PAHOLE 等 config 统一由 build.sh 在 defconfig 之后设置。
+log "BTF 配置稍后由 build.sh 统一设置 (当前阶段 .config 尚未生成)"
 
 # PAHOLE 需要 pahole 工具
 if ! command -v pahole >/dev/null 2>&1; then
