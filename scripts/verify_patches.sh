@@ -5,6 +5,8 @@
 # 这是"方案是否成立"的决定性验证：patch 能 apply 才有意义。
 set -uo pipefail
 
+ok()    { echo -e "\033[1;32m[ ok ]\033[0m $*"; }
+
 BASE="$(cd "$(dirname "$0")/.." && pwd)"
 PATCH_DIR="$BASE/patches/mt6768-bpf"
 WORK="${WORK:-/tmp/bpfverify}"
