@@ -128,6 +128,18 @@ else
   export LLVM_IAS=0
 fi
 
+# GCC 对 K&R 式函数声明 (如 `static char *hw_item_dump()`) 会报
+# -Werror=strict-prototypes, 而原厂内核是 clang 编译的 (clang 不报)。
+#
+# 根因: 4.14 的 Makefile 第 420 行自带
+#   KBUILD_CFLAGS := -Wall -Wundef -Wstrict-prototypes ...
+# 解决: 通过 make 的 CFLAGS_KERNEL 变量追加覆盖标志。
+#   scripts/Makefile.build:124 用的是
+#     $(KBUILD_CFLAGS_KERNEL) $(CFLAGS_KERNEL)
+#   CFLAGS_KERNEL 追加在内核标志之后 -> 覆盖 -Wstrict-prototypes。
+# 注意: 4.14 不认 KCFLAGS (那是 5.x 才有的), 别用。
+export EXTRA_CFLAGS="-Wno-strict-prototypes -Wno-old-style-definition -Wno-implicit-fallthrough -Wno-maybe-uninitialized -Wno-unused-but-set-variable -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=return-type -Wno-error=incompatible-pointer-types"
+
 # 编译器自检 —— 前缀与实际二进制不匹配是 4.14 编译最常见的坑
 log "    编译器自检..."
 if ! command -v "${CROSS}gcc" >/dev/null 2>&1 && ! echo "$CC_CMD" | grep -q "^clang"; then
@@ -246,21 +258,55 @@ done
 log "    使用 defconfig: $DEFCONFIG"
 
 make O="$OUT" ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" \
+     CFLAGS_KERNEL="$EXTRA_CFLAGS" \
      CC="$CC" LD="$LD" HOSTCC="$HOSTCC" \
      LLVM_IAS="$LLVM_IAS" LOCALVERSION="$LOCALVERSION" \
      "$DEFCONFIG" || die "defconfig 失败"
 
-# ── 关键: 原厂 defconfig 里 CONFIG_MODVERSIONS 没有 default y (默认 n),
-#    但原厂 .ko 的 vermagic 明确带 modversions -> 必须显式打开,
+# ── 统一设置 config (必须在此处: defconfig 之后 .config 才存在) ──
+log "    设置内核选项..."
+
+# ① MODVERSIONS: 原厂 defconfig 里没有 default y (默认 n),
+#    但原厂 .ko 的 vermagic 明确带 modversions -> 必须开,
 #    否则原厂 10 个 .ko 全部 "disagrees about version of symbol"
-log "    强制打开 CONFIG_MODVERSIONS (原厂 .ko 依赖符号 CRC)"
 scripts/config --file "$OUT_ABS/.config" --enable CONFIG_MODVERSIONS
-# 原厂 defconfig 显式关闭了 FHANDLE, 而 A16+ 的 BPF 需要它
+
+# ② FHANDLE: 原厂 defconfig 显式关闭, 而 A16+ 的 BPF 需要它
 scripts/config --file "$OUT_ABS/.config" --enable CONFIG_FHANDLE
 scripts/config --file "$OUT_ABS/.config" --enable CONFIG_INDIRECT_FD
-ok "MODVERSIONS / FHANDLE / INDIRECT_FD 已开启"
+
+# ③ EROFS: A15+ 的 system/product/system_ext 全是 erofs, 没驱动直接卡开机
+scripts/config --file "$OUT_ABS/.config" \
+  --enable CONFIG_EROFS_FS \
+  --enable CONFIG_EROFS_FS_XATTR \
+  --enable CONFIG_EROFS_FS_ZIP \
+  --enable CONFIG_LZ4 \
+  --enable CONFIG_LZ4_DECOMPRESS \
+  --enable CONFIG_CRYPTO \
+  --enable CONFIG_CRYPTO_LZ4
+
+# ④ BPF + BTF: 本机内核已自带 BPF 主体, 但缺 BTF (A16+ 的 bpfloader 需要)
+scripts/config --file "$OUT_ABS/.config" \
+  --enable CONFIG_BPF_SYSCALL \
+  --enable CONFIG_BPF_JIT \
+  --enable CONFIG_BPF_JIT_ALWAYS_ON \
+  --enable CONFIG_BPF_EVENTS \
+  --enable CONFIG_DEBUG_INFO \
+  --enable CONFIG_DEBUG_INFO_BTF \
+  --enable CONFIG_PAHOLE_VERSION \
+  --enable CONFIG_CGROUP_BPF \
+  --enable CONFIG_CGROUP_FREEZER
+
+# ⑤ Cgroup v2 (Android 11+ 需要)
+scripts/config --file "$OUT_ABS/.config" \
+  --enable CONFIG_CGROUPS \
+  --enable CONFIG_CGROUP_SCHED \
+  --enable CONFIG_MEMBARRIER
+
+ok "内核选项已设置 (MODVERSIONS/FHANDLE/EROFS/BPF/BTF/CGROUP)"
 
 make O="$OUT" ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" \
+     CFLAGS_KERNEL="$EXTRA_CFLAGS" \
      CC="$CC" LD="$LD" HOSTCC="$HOSTCC" \
      LLVM_IAS="$LLVM_IAS" LOCALVERSION="$LOCALVERSION" \
      -j"$(nproc)" Image.gz-dtb Image.gz || die "编译失败"
@@ -290,6 +336,7 @@ ok "已固定 LOCALVERSION=$LOCALVERSION 且关闭 LOCALVERSION_AUTO"
 
 # 重编一次让版本串生效 (增量, 很快)
 make O="$OUT" ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" \
+     CFLAGS_KERNEL="$EXTRA_CFLAGS" \
      CC="$CC" LD="$LD" HOSTCC="$HOSTCC" \
      LLVM_IAS="$LLVM_IAS" LOCALVERSION="$LOCALVERSION" \
      -j"$(nproc)" Image.gz-dtb Image.gz || die "重编失败 (版本串对齐)"
