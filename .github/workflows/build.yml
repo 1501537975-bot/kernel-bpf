@@ -139,9 +139,9 @@ jobs:
           # 而 buildrepo/ 是本仓库 —— 两者是兄弟目录, 不是父子。
           KERNEL_DIR: ${{ github.workspace }}/kernel
           OUT: ${{ github.workspace }}/out
-          PATCH_DIR: ${{ github.workspace }}/kernel-bpf/kernel-bpf/patches
-          EROFS_TREE: ${{ github.workspace }}/kernel-bpf/kernel-bpf/patches/erofs
-          SCRIPTS_DIR: ${{ github.workspace }}/kernel-bpf/kernel-bpf/scripts
+          PATCH_DIR: ${{ github.workspace }}/buildrepo/patches
+          EROFS_TREE: ${{ github.workspace }}/buildrepo/patches/erofs
+          SCRIPTS_DIR: ${{ github.workspace }}/buildrepo/scripts
         run: |
           cd buildrepo
           chmod +x scripts/*.sh

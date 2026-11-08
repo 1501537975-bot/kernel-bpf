@@ -67,7 +67,7 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 KERNEL_DIR="$(_abspath "${KERNEL_DIR:-$REPO_DIR/../kernel}")"
 OUT="$(_abspath "${OUT:-$REPO_DIR/../out}")"
-SCRIPTS_DIR="${SCRIPTS_DIR:-$SCRIPT_DIR}"
+SCRIPTS_DIR="$(_abspath "${SCRIPTS_DIR:-$SCRIPT_DIR}")"
 PATCH_DIR="$(_abspath "${PATCH_DIR:-$REPO_DIR/patches}")"
 EROFS_TREE="$(_abspath "${EROFS_TREE:-$PATCH_DIR/erofs}")"
 
