@@ -349,9 +349,22 @@ log "    设置内核选项..."
 #
 # 栈保护只是安全加固项, 关掉不影响功能 (内核会回落到 REGULAR),
 # 而原厂 .ko 不依赖它。直接关掉 STRONG 最省事。
+# 栈保护的两个变体都要关掉:
+#   CONFIG_CC_STACKPROTECTOR_STRONG  -> -fstack-protector-strong
+#   CONFIG_CC_STACKPROTECTOR_REGULAR -> -fstack-protector
+# prepare-compiler-check 通过 cc-option 试编译探测它们, 而 scripts/Kbuild.include:115
+# 的 __cc-option 硬编码了 -Werror, 探测必然失败:
+#   Cannot use CONFIG_CC_STACKPROTECTOR_STRONG:  -fstack-protector-strong not supported
+#   Cannot use CONFIG_CC_STACKPROTECTOR_REGULAR: -fstack-protector not supported
+# 两个都关 -> 内核走 "Force off for distro compilers" 分支, 编译正常。
+# 栈保护只是安全加固, 与 vendor .ko 的 vermagic 无关, 关掉不影响加载。
 "$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" --disable CONFIG_CC_STACKPROTECTOR_STRONG
-"$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" --enable CONFIG_CC_STACKPROTECTOR_REGULAR
-ok "已关闭 STRONG 栈保护 (规避 compiler-check 探测失败), 回落 REGULAR"
+"$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" --disable CONFIG_CC_STACKPROTECTOR_REGULAR
+# 还要关掉总开关 CONFIG_CC_STACKPROTECTOR:
+#   Makefile: "ifdef CONFIG_CC_STACKPROTECTOR" -> stackp-check ->
+#   scripts/gcc-<arch>-has-stack-protector.sh, 那也是 GCC 专有脚本, clang 树里没有
+"$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" --disable CONFIG_CC_STACKPROTECTOR
+ok "已关闭栈保护 (STRONG/REGULAR/总开关), 规避 compiler-check 探测失败"
 
 # ④ BPF + BTF: 本机内核已自带 BPF 主体, 但缺 BTF (A16+ 的 bpfloader 需要)
 "$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" \
