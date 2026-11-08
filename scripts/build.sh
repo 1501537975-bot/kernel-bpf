@@ -422,6 +422,20 @@ ok "已关闭栈保护 (STRONG/REGULAR/总开关), 规避 compiler-check 探测�
   --enable CONFIG_CGROUP_FREEZER \
   --enable CONFIG_BPF_STREAM_PARSER
 
+# ③-c 关掉 CONFIG_BLK_INLINE_ENCRYPTION
+#     MTK 的这个特性用 C99 inline 语义定义了两个导出符号:
+#       block/keyslot-manager.c:684  inline void ksm_flock(...)  + EXPORT_SYMBOL_GPL
+#       block/blk-crypto.c          inline void blk_crypto_flock(...) + EXPORT_SYMBOL_GPL
+#     clang 接受, GCC 5+ 拒绝:
+#       error: inlining failed in call to 'always_inline' 'ksm_flock':
+#              function body not available
+#     这功能是 UFS 硬件内联加密 (hardware-wrapped keys), 本机用不到,
+#     关掉后 block/Makefile 的 obj-$(CONFIG_BLK_INLINE_ENCRYPTION) 不再编译这两个文件。
+"$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" \
+  --disable CONFIG_BLK_INLINE_ENCRYPTION \
+  --disable CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK
+ok "已关闭 CONFIG_BLK_INLINE_ENCRYPTION (规避 GCC inline 语义冲突)"
+
 # ④-b net/core/Makefile 必须登记 sock_map.o
 #     mt6768 把 sockmap 实现从 kernel/bpf/sockmap.c 移到了 net/core/sock_map.c,
 #     而原厂的 net/core/Makefile 没有这条规则 -> 不补会链接失败
