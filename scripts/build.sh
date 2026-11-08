@@ -16,10 +16,28 @@
 
 set -euo pipefail
 
+# ── 真值归一化 ────────────────────────────────────────
+# GitHub Actions 的 boolean input 传进来是字符串 "true"/"false",
+# 而本地默认用的是 "yes"/"no"。两种都必须认, 否则
+#   if [ "$ENABLE_BPF" = "yes" ]  ← 永远不成立, 关键步骤全被跳过!
+# (踩过这个坑: 前几轮实际编译的是没打任何 patch 的原厂内核)
+_truthy() {
+  case "$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')" in
+    1|y|yes|true|on)  return 0 ;;
+    *)                return 1 ;;
+  esac
+}
+
 ENABLE_EROFS="${enable_erofs:-yes}"
 ENABLE_BPF="${enable_bpf:-yes}"
 ENABLE_UNAME="${enable_uname:-yes}"
 ENABLE_KSU="${enable_ksu:-no}"
+
+# 归一化到 yes/no
+_truthy "$ENABLE_EROFS" && ENABLE_EROFS=yes || ENABLE_EROFS=no
+_truthy "$ENABLE_BPF"   && ENABLE_BPF=yes   || ENABLE_BPF=no
+_truthy "$ENABLE_UNAME" && ENABLE_UNAME=yes || ENABLE_UNAME=no
+_truthy "$ENABLE_KSU"   && ENABLE_KSU=yes   || ENABLE_KSU=no
 LOCALVERSION="${localversion:--perf-00252-g2f26b5917fd6}"
 
 # ── 路径统一绝对化 ──────────────────────────────────────
@@ -335,6 +353,22 @@ scripts/config --file "$OUT_ABS/.config" \
   --enable CONFIG_LZ4_DECOMPRESS \
   --enable CONFIG_CRYPTO \
   --enable CONFIG_CRYPTO_LZ4
+
+# ③-b 关闭 STRONG 栈保护 (规避 prepare-compiler-check 的探测失败)
+#
+# 原因: 4.14 的 scripts/Kbuild.include:115 硬编码了
+#     __cc-option = $(call try-run,$(1) -Werror $(2) $(3) -c -x c /dev/null ...)
+# 这个 -Werror 是命令行直接加的, 改 Makefile 改不到它。
+# 于是 cc-option 探测 -fstack-protector-strong 时带着全局 -Werror,
+# 任何警告都致命 -> 探测返回空 ->
+#     "Cannot use CONFIG_CC_STACKPROTECTOR_STRONG:
+#      -fstack-protector-strong not supported by compiler"
+#
+# 栈保护只是安全加固项, 关掉不影响功能 (内核会回落到 REGULAR),
+# 而原厂 .ko 不依赖它。直接关掉 STRONG 最省事。
+scripts/config --file "$OUT_ABS/.config" --disable CONFIG_CC_STACKPROTECTOR_STRONG
+scripts/config --file "$OUT_ABS/.config" --enable CONFIG_CC_STACKPROTECTOR_REGULAR
+ok "已关闭 STRONG 栈保护 (规避 compiler-check 探测失败), 回落 REGULAR"
 
 # ④ BPF + BTF: 本机内核已自带 BPF 主体, 但缺 BTF (A16+ 的 bpfloader 需要)
 scripts/config --file "$OUT_ABS/.config" \
