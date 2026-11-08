@@ -6,7 +6,7 @@ Subject: [PATCH] BPF backport: kernel/bpf/offload.c
 操作: 新增文件
 
 ---
---- a/kernel/bpf/offload.c
+--- /dev/null
 +++ b/kernel/bpf/offload.c
 @@ -0,0 +1,712 @@
 +/*

@@ -6,7 +6,7 @@ Subject: [PATCH] BPF backport: kernel/bpf/disasm.c
 操作: 新增文件
 
 ---
---- a/kernel/bpf/disasm.c
+--- /dev/null
 +++ b/kernel/bpf/disasm.c
 @@ -0,0 +1,260 @@
 +// SPDX-License-Identifier: GPL-2.0-only

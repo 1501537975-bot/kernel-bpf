@@ -6,7 +6,7 @@ Subject: [PATCH] BPF backport: kernel/bpf/map_iter.c
 操作: 新增文件
 
 ---
---- a/kernel/bpf/map_iter.c
+--- /dev/null
 +++ b/kernel/bpf/map_iter.c
 @@ -0,0 +1,195 @@
 +// SPDX-License-Identifier: GPL-2.0-only

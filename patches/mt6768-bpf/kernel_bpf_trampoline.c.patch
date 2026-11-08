@@ -6,7 +6,7 @@ Subject: [PATCH] BPF backport: kernel/bpf/trampoline.c
 操作: 新增文件
 
 ---
---- a/kernel/bpf/trampoline.c
+--- /dev/null
 +++ b/kernel/bpf/trampoline.c
 @@ -0,0 +1,457 @@
 +// SPDX-License-Identifier: GPL-2.0-only

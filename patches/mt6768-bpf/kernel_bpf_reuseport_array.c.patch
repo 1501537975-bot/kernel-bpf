@@ -6,7 +6,7 @@ Subject: [PATCH] BPF backport: kernel/bpf/reuseport_array.c
 操作: 新增文件
 
 ---
---- a/kernel/bpf/reuseport_array.c
+--- /dev/null
 +++ b/kernel/bpf/reuseport_array.c
 @@ -0,0 +1,363 @@
 +// SPDX-License-Identifier: GPL-2.0

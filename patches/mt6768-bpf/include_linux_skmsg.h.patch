@@ -6,7 +6,7 @@ Subject: [PATCH] BPF backport: include/linux/skmsg.h
 操作: 新增文件
 
 ---
---- a/include/linux/skmsg.h
+--- /dev/null
 +++ b/include/linux/skmsg.h
 @@ -0,0 +1,454 @@
 +/* SPDX-License-Identifier: GPL-2.0 */

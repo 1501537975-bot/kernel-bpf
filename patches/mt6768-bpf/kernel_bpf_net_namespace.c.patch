@@ -6,7 +6,7 @@ Subject: [PATCH] BPF backport: kernel/bpf/net_namespace.c
 操作: 新增文件
 
 ---
---- a/kernel/bpf/net_namespace.c
+--- /dev/null
 +++ b/kernel/bpf/net_namespace.c
 @@ -0,0 +1,562 @@
 +// SPDX-License-Identifier: GPL-2.0

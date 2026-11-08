@@ -6,7 +6,7 @@ Subject: [PATCH] BPF backport: kernel/bpf/sysfs_btf.c
 操作: 新增文件
 
 ---
---- a/kernel/bpf/sysfs_btf.c
+--- /dev/null
 +++ b/kernel/bpf/sysfs_btf.c
 @@ -0,0 +1,45 @@
 +// SPDX-License-Identifier: GPL-2.0

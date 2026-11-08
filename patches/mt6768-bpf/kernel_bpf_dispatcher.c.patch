@@ -6,7 +6,7 @@ Subject: [PATCH] BPF backport: kernel/bpf/dispatcher.c
 操作: 新增文件
 
 ---
---- a/kernel/bpf/dispatcher.c
+--- /dev/null
 +++ b/kernel/bpf/dispatcher.c
 @@ -0,0 +1,159 @@
 +// SPDX-License-Identifier: GPL-2.0-only

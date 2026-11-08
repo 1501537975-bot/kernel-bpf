@@ -6,7 +6,7 @@ Subject: [PATCH] BPF backport: kernel/bpf/cpumap.c
 操作: 新增文件
 
 ---
---- a/kernel/bpf/cpumap.c
+--- /dev/null
 +++ b/kernel/bpf/cpumap.c
 @@ -0,0 +1,758 @@
 +// SPDX-License-Identifier: GPL-2.0-only

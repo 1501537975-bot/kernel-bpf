@@ -6,7 +6,7 @@ Subject: [PATCH] BPF backport: kernel/bpf/btf.c
 操作: 新增文件
 
 ---
---- a/kernel/bpf/btf.c
+--- /dev/null
 +++ b/kernel/bpf/btf.c
 @@ -0,0 +1,5573 @@
 +/* SPDX-License-Identifier: GPL-2.0 */

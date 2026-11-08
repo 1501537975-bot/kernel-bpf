@@ -6,7 +6,7 @@ Subject: [PATCH] BPF backport: kernel/bpf/bpf_local_storage.c
 操作: 新增文件
 
 ---
---- a/kernel/bpf/bpf_local_storage.c
+--- /dev/null
 +++ b/kernel/bpf/bpf_local_storage.c
 @@ -0,0 +1,610 @@
 +// SPDX-License-Identifier: GPL-2.0

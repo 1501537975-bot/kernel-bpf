@@ -6,7 +6,7 @@ Subject: [PATCH] BPF backport: kernel/bpf/bpf_struct_ops_types.h
 操作: 新增文件
 
 ---
---- a/kernel/bpf/bpf_struct_ops_types.h
+--- /dev/null
 +++ b/kernel/bpf/bpf_struct_ops_types.h
 @@ -0,0 +1,9 @@
 +/* SPDX-License-Identifier: GPL-2.0 */

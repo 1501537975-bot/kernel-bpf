@@ -6,7 +6,7 @@ Subject: [PATCH] BPF backport: net/core/sock_map.c
 操作: 新增文件
 
 ---
---- a/net/core/sock_map.c
+--- /dev/null
 +++ b/net/core/sock_map.c
 @@ -0,0 +1,1285 @@
 +// SPDX-License-Identifier: GPL-2.0

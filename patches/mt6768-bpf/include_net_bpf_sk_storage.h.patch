@@ -6,7 +6,7 @@ Subject: [PATCH] BPF backport: include/net/bpf_sk_storage.h
 操作: 新增文件
 
 ---
---- a/include/net/bpf_sk_storage.h
+--- /dev/null
 +++ b/include/net/bpf_sk_storage.h
 @@ -0,0 +1,62 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
