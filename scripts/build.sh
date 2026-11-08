@@ -53,7 +53,7 @@ CROSS=""
 CC_CMD=""
 LD_CMD=""
 
-if [ -n "$CLANG_PREBUILT_BIN" ] && [ -x "$CLANG_PREBUILT_BIN/clang" ]; then
+if [ -n "${CLANG_PREBUILT_BIN:-}" ] && [ -x "${CLANG_PREBUILT_BIN}/clang" ]; then
   export PATH="${CLANG_PREBUILT_BIN}:$PATH"
   CROSS="aarch64-linux-android-"
   CC_CMD="clang"

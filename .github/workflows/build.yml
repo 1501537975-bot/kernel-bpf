@@ -143,6 +143,9 @@ jobs:
         run: |
           cd buildrepo
           chmod +x scripts/*.sh
+          # 注意: 必须用 PIPESTATUS 取 build.sh 的真实退出码,
+          # 直接 `bash x.sh | tee log` 会让 tee 的 0 覆盖掉脚本的失败
+          set -o pipefail
           bash scripts/build.sh 2>&1 | tee build.log
 
       - name: Verify outputs
