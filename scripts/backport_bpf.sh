@@ -51,8 +51,29 @@ else
   if [ -d "$PATCH_DIR/mt6768-bpf" ]; then
     for p in "$PATCH_DIR"/mt6768-bpf/*.patch; do
       [ -f "$p" ] || continue
-      log "apply $(basename "$p")"
-      git apply --3way "$p" || git apply "$p" || warn "apply 失败: $(basename "$p")"
+      name=$(basename "$p")
+      # .delete.patch = 删掉原厂文件 (mt6768 已把该实现移到别处)
+      case "$name" in
+        *.delete.patch)
+          target=$(grep -m1 '^--- a/' "$p" | sed 's|^--- a/||')
+          if [ -f "$KERNEL_DIR/$target" ]; then
+            log "delete $target"
+            rm -f "$KERNEL_DIR/$target"
+          else
+            log "delete $target (已不存在, 跳过)"
+          fi
+          continue
+          ;;
+      esac
+      log "apply $name"
+      # 注意: 浅克隆没有 blob, git apply --3way 会报
+      # "repository lacks the necessary blob", 所以直接用普通 apply
+      if git apply "$p" 2>/tmp/ga.txt; then
+        :
+      else
+        warn "apply 失败: $name"
+        head -3 /tmp/ga.txt | sed 's/^/         /'
+      fi
     done
     ok "patch 集合应用完成"
   else

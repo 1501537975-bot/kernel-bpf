@@ -2,8 +2,8 @@ From: cezanne-bpf-backport <auto@local>
 Subject: [PATCH] BPF backport: kernel/bpf/hashtab.c
 
 回合自同代 MTK 树 mk7x7/android_kernel_xiaomi_mt6768@skyron
-目标：让 4.14 内核具备 Android 16/17 所需的 sk_msg / BTF 能力
-说明：map 实现
+目标: 让 4.14 具备 Android 16/17 所需的 BPF 能力 (sk_msg / BTF / arraymap)
+操作: 修改
 
 ---
 --- a/kernel/bpf/hashtab.c

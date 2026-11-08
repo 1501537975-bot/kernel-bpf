@@ -1,0 +1,20 @@
+From: cezanne-bpf-backport <auto@local>
+Subject: [PATCH] BPF backport: kernel/bpf/preload
+
+回合自同代 MTK 树 mk7x7/android_kernel_xiaomi_mt6768@skyron
+目标: 让 4.14 具备 Android 16/17 所需的 BPF 能力 (sk_msg / BTF / arraymap)
+操作: 新增文件
+
+---
+--- a/kernel/bpf/preload
++++ b/kernel/bpf/preload
+@@ -0,0 +1,9 @@
++tree skyron:kernel/bpf/preload
++
++.gitignore
++Kconfig
++Makefile
++bpf_preload.h
++bpf_preload_kern.c
++bpf_preload_umd_blob.S
++iterators/

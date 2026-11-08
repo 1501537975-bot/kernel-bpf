@@ -380,7 +380,22 @@ ok "已关闭栈保护 (STRONG/REGULAR/总开关), 规避 compiler-check 探测�
   --enable CONFIG_DEBUG_INFO_BTF \
   --enable CONFIG_PAHOLE_VERSION \
   --enable CONFIG_CGROUP_BPF \
-  --enable CONFIG_CGROUP_FREEZER
+  --enable CONFIG_CGROUP_FREEZER \
+  --enable CONFIG_BPF_STREAM_PARSER
+
+# ④-b net/core/Makefile 必须登记 sock_map.o
+#     mt6768 把 sockmap 实现从 kernel/bpf/sockmap.c 移到了 net/core/sock_map.c,
+#     而原厂的 net/core/Makefile 没有这条规则 -> 不补会链接失败
+NETMK="$KERNEL_DIR/net/core/Makefile"
+if [ -f "$NETMK" ] && ! grep -q "sock_map.o" "$NETMK"; then
+  if grep -q "^obj-" "$NETMK"; then
+    sed -i '0,/^obj-/s//obj-$(CONFIG_BPF_STREAM_PARSER) += sock_map.o\nobj-/' "$NETMK"
+    ok "net/core/Makefile 已加入 sock_map.o"
+  else
+    echo "obj-\$(CONFIG_BPF_STREAM_PARSER) += sock_map.o" >> "$NETMK"
+    ok "net/core/Makefile 已追加 sock_map.o"
+  fi
+fi
 
 # ⑤ Cgroup v2 (Android 11+ 需要)
 "$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" \

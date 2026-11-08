@@ -1,0 +1,24 @@
+From: cezanne-bpf-backport <auto@local>
+Subject: [PATCH] BPF backport: include/uapi/linux/bpf_common.h
+
+回合自同代 MTK 树 mk7x7/android_kernel_xiaomi_mt6768@skyron
+目标: 让 4.14 具备 Android 16/17 所需的 BPF 能力 (sk_msg / BTF / arraymap)
+操作: 修改
+
+---
+--- a/include/uapi/linux/bpf_common.h
++++ b/include/uapi/linux/bpf_common.h
+@@ -15,9 +15,10 @@
+ 
+ /* ld/ldx fields */
+ #define BPF_SIZE(code)  ((code) & 0x18)
+-#define		BPF_W		0x00
+-#define		BPF_H		0x08
+-#define		BPF_B		0x10
++#define		BPF_W		0x00 /* 32-bit */
++#define		BPF_H		0x08 /* 16-bit */
++#define		BPF_B		0x10 /*  8-bit */
++/* eBPF		BPF_DW		0x18    64-bit */
+ #define BPF_MODE(code)  ((code) & 0xe0)
+ #define		BPF_IMM		0x00
+ #define		BPF_ABS		0x20

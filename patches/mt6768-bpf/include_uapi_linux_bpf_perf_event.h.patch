@@ -1,0 +1,24 @@
+From: cezanne-bpf-backport <auto@local>
+Subject: [PATCH] BPF backport: include/uapi/linux/bpf_perf_event.h
+
+回合自同代 MTK 树 mk7x7/android_kernel_xiaomi_mt6768@skyron
+目标: 让 4.14 具备 Android 16/17 所需的 BPF 能力 (sk_msg / BTF / arraymap)
+操作: 修改
+
+---
+--- a/include/uapi/linux/bpf_perf_event.h
++++ b/include/uapi/linux/bpf_perf_event.h
+@@ -8,11 +8,10 @@
+ #ifndef _UAPI__LINUX_BPF_PERF_EVENT_H__
+ #define _UAPI__LINUX_BPF_PERF_EVENT_H__
+ 
+-#include <linux/types.h>
+-#include <linux/ptrace.h>
++#include <asm/bpf_perf_event.h>
+ 
+ struct bpf_perf_event_data {
+-	struct pt_regs regs;
++	bpf_user_pt_regs_t regs;
+ 	__u64 sample_period;
+ };
+ 

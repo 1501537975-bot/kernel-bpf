@@ -1,0 +1,20 @@
+From: cezanne-bpf-backport <auto@local>
+Subject: [PATCH] BPF backport: kernel/bpf/bpf_struct_ops_types.h
+
+回合自同代 MTK 树 mk7x7/android_kernel_xiaomi_mt6768@skyron
+目标: 让 4.14 具备 Android 16/17 所需的 BPF 能力 (sk_msg / BTF / arraymap)
+操作: 新增文件
+
+---
+--- a/kernel/bpf/bpf_struct_ops_types.h
++++ b/kernel/bpf/bpf_struct_ops_types.h
+@@ -0,0 +1,9 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/* internal file - do not include directly */
++
++#ifdef CONFIG_BPF_JIT
++#ifdef CONFIG_INET
++#include <net/tcp.h>
++BPF_STRUCT_OPS_TYPE(tcp_congestion_ops)
++#endif
++#endif
