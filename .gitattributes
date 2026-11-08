@@ -1,0 +1,21 @@
+# 默认按文本处理, 提交时统一为 LF (Linux/macOS)
+* text=auto eol=lf
+
+# Shell 脚本必须 LF —— CRLF 会让 bash 报 "bad interpreter: /usr/bin/env bash^M"
+*.sh text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.fragment text eol=lf
+*.patch text eol=lf
+
+# 二进制文件不做换行转换
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.zip binary
+*.img binary
+*.bin binary
+*.ko binary
+*.apex binary
