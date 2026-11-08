@@ -486,41 +486,83 @@ fi
 
 ok "内核选项已设置 (MODVERSIONS/FHANDLE/EROFS/BPF/BTF/CGROUP)"
 
+# ─────────────────────────────────────────────────────────────
+# ★★★ 强制对齐 kernel-release (最关键的一步, 必须在编译之前做)
+#
+#   原厂 .ko 的 vermagic 必须精确匹配:
+#     4.14.186-perf-00252-g2f26b5917fd6 SMP preempt mod_unload modversions aarch64
+#   不一致 → 相机/蓝牙/GPS/热管理全部失效, 刷了等于变砖。
+#
+#   ★★★ 根因 (第 28 轮实测, 只差这一个字) ★★★
+#   内核 scripts/setlocalversion 第 96 行:
+#       res="${res}${CONFIG_LOCALVERSION}${LOCALVERSION}"
+#   这两个是**相加**关系, 不是二选一!
+#     - CONFIG_LOCALVERSION : 来自 .config → include/config/auto.conf
+#     - LOCALVERSION         : make 命令行变量, make 会导出到 recipe 环境
+#   第 28 轮两者都被写成 -perf-00252-g2f26b5917fd6, 于是后缀出现两次:
+#       4.14.186-perf-00252-g2f26b5917fd6-perf-00252-g2f26b5917fd6
+#
+#   ★ 正确做法 (与原厂 MTK 构建方式等价):
+#       CONFIG_LOCALVERSION_AUTO = not set   ← 否则 git describe 追加 -g<hash>
+#       CONFIG_LOCALVERSION      = ""        ← 必须为空, 只留一个来源
+#       LOCALVERSION             = -perf-...  ← 只通过 make 命令行传一次
+#
+#   ★ 为什么传了 LOCALVERSION 就不会多出 "+":
+#       setlocalversion 里 `if test "${LOCALVERSION+set}" != "set"` —
+#       环境里存在 LOCALVERSION 就不追加 scm 短哈希/加号。
+#
+#   ★ 先做秒级预检 (make kernelrelease), 不通过直接 die ——
+#     避免白编译 40 分钟后才发现版本串错了。
+# ─────────────────────────────────────────────────────────────
+log "对齐 kernel-release (原厂要求 $EXPECT_RELEASE)"
+
+# ① 关掉 LOCALVERSION_AUTO (否则 setlocalversion 用 git describe 追加 -g<hash>)
+sed -i 's/^CONFIG_LOCALVERSION_AUTO=y/# CONFIG_LOCALVERSION_AUTO is not set/' "$OUT_ABS/.config"
+grep -q "^CONFIG_LOCALVERSION_AUTO" "$OUT_ABS/.config" || echo "# CONFIG_LOCALVERSION_AUTO is not set" >> "$OUT_ABS/.config"
+
+# ② CONFIG_LOCALVERSION 必须置空 —— 这是第 28 轮失败的关键
+#    setlocalversion 会把 CONFIG_LOCALVERSION 与 make 命令行传入的 LOCALVERSION
+#    **相加**, 两者同值就会让后缀翻倍。空串 = 只有一个来源。
+if grep -q "^CONFIG_LOCALVERSION=" "$OUT_ABS/.config"; then
+  sed -i 's|^CONFIG_LOCALVERSION=.*|CONFIG_LOCALVERSION=""|' "$OUT_ABS/.config"
+else
+  echo 'CONFIG_LOCALVERSION=""' >> "$OUT_ABS/.config"
+fi
+ok "CONFIG_LOCALVERSION_AUTO=off, CONFIG_LOCALVERSION=\"\" (后缀只由 make 命令行注入一次)"
+
+# ③ 秒级预检 —— 编译前就确认版本串, 不通过立刻 die
+#    用 include/config/kernel.release (内核真正使用的那个文件), 而不是
+#    kernelrelease 目标 —— 后者不依赖 auto.conf, 会读到过期的 config 值。
+probe_release() {
+  make O="$OUT" ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" \
+       CFLAGS_KERNEL="$EXTRA_CFLAGS" \
+       CC="$CC" LD="$LD" HOSTCC="$HOSTCC" \
+       LLVM_IAS="$LLVM_IAS" LOCALVERSION="$LOCALVERSION" \
+       include/config/kernel.release >/dev/null 2>&1 || true
+  cat "$OUT_ABS/include/config/kernel.release" 2>/dev/null | tr -d '\r\n'
+}
+PROBE="$(probe_release)"
+log "预检 kernel-release = ${PROBE:-<空>}"
+
+if [ "$PROBE" != "$EXPECT_RELEASE" ]; then
+  warn "预检不通过 (得到 '${PROBE:-空}', 期望 '$EXPECT_RELEASE') -> 启用 setlocalversion 强制改写"
+  if bash "$SCRIPTS_DIR/force_release.sh" "$KERNEL_DIR/scripts/setlocalversion" "$LOCALVERSION"; then
+    PROBE="$(probe_release)"
+    log "fallback 后 kernel-release = ${PROBE:-<空>}"
+  else
+    warn "fallback 改写失败"
+  fi
+  if [ "$PROBE" != "$EXPECT_RELEASE" ]; then
+    die "版本串预检失败: 得到 '${PROBE:-空}', 期望 '$EXPECT_RELEASE' —— 拒绝进入编译"
+  fi
+fi
+ok "版本串预检通过 ✓ ($PROBE)"
+
 make O="$OUT" ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" \
      CFLAGS_KERNEL="$EXTRA_CFLAGS" \
      CC="$CC" LD="$LD" HOSTCC="$HOSTCC" \
      LLVM_IAS="$LLVM_IAS" LOCALVERSION="$LOCALVERSION" \
      -j"$(nproc)" Image.gz-dtb Image.gz || die "编译失败"
-
-# ─────────────────────────────────────────────────────────────
-# ★★★ 强制改写版本串 (最关键的一步)
-#   原厂 .ko 的 vermagic 必须精确匹配:
-#     4.14.186-perf-00252-g2f26b5917fd6 SMP preempt mod_unload modversions aarch64
-#   而 Actions 里是浅克隆, setlocalversion 追加的 git hash 与原厂不同
-#   (原厂是 g2f26b5917fd6, 我们会得到别的 hash) → 模块全部加载失败
-#
-#   做法: 用 scripts/setlocalversion 的替代 —— 直接在 Makefile 里写死
-#         并关闭 CONFIG_LOCALVERSION_AUTO, 然后重编
-# ─────────────────────────────────────────────────────────────
-log "强制对齐 kernel-release (原厂要求 $([ -n "$EXPECT_RELEASE" ] && echo "$EXPECT_RELEASE" || echo '4.14.186-perf-00252-g2f26b5917fd6'))"
-
-# 关掉 LOCALVERSION_AUTO (否则 setlocalversion 会用 git hash 覆盖)
-sed -i 's/^CONFIG_LOCALVERSION_AUTO=y/# CONFIG_LOCALVERSION_AUTO is not set/' "$OUT_ABS/.config"
-grep -q "^CONFIG_LOCALVERSION_AUTO" "$OUT_ABS/.config" || echo "# CONFIG_LOCALVERSION_AUTO is not set" >> "$OUT_ABS/.config"
-# 写死 LOCALVERSION
-if grep -q "^CONFIG_LOCALVERSION=" "$OUT_ABS/.config"; then
-  sed -i "s|^CONFIG_LOCALVERSION=.*|CONFIG_LOCALVERSION=\"$LOCALVERSION\"|" "$OUT_ABS/.config"
-else
-  echo "CONFIG_LOCALVERSION=\"$LOCALVERSION\"" >> "$OUT_ABS/.config"
-fi
-ok "已固定 LOCALVERSION=$LOCALVERSION 且关闭 LOCALVERSION_AUTO"
-
-# 重编一次让版本串生效 (增量, 很快)
-make O="$OUT" ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" \
-     CFLAGS_KERNEL="$EXTRA_CFLAGS" \
-     CC="$CC" LD="$LD" HOSTCC="$HOSTCC" \
-     LLVM_IAS="$LLVM_IAS" LOCALVERSION="$LOCALVERSION" \
-     -j"$(nproc)" Image.gz-dtb Image.gz || die "重编失败 (版本串对齐)"
 
 cd "$REPO_DIR"
 ok "编译完成"
