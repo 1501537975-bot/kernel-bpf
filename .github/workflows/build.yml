@@ -112,19 +112,23 @@ jobs:
           git clone --depth 1 --filter=blob:none --sparse \
             https://github.com/mk7x7/android_kernel_xiaomi_mt6768 /tmp/mt6768 || true
           if [ -d /tmp/mt6768/fs/erofs ]; then
-            (cd /tmp/mt6768 && git sparse-checkout set fs/erofs include/uapi/linux/erofs_fs.h) || true
+            (cd /tmp/mt6768 && git sparse-checkout set fs/erofs include/uapi/linux include/trace/events) || true
             mkdir -p patches/erofs/fs
             cp -r /tmp/mt6768/fs/erofs patches/erofs/fs/ 2>/dev/null || true
-            cp /tmp/mt6768/include/uapi/linux/erofs_fs.h patches/erofs/ 2>/dev/null || true
+            mkdir -p patches/erofs/include/uapi/linux patches/erofs/include/trace/events
+            cp /tmp/mt6768/include/uapi/linux/erofs_fs.h patches/erofs/include/uapi/linux/ 2>/dev/null || true
+            cp /tmp/mt6768/include/trace/events/erofs.h patches/erofs/include/trace/events/ 2>/dev/null || true
             echo "EROFS source fetched from mt6768"
           else
             git clone --depth 1 --filter=blob:none --sparse \
               https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885 /tmp/mt6885 || true
             if [ -d /tmp/mt6885/fs/erofs ]; then
-              (cd /tmp/mt6885 && git sparse-checkout set fs/erofs include/uapi/linux/erofs_fs.h) || true
+              (cd /tmp/mt6885 && git sparse-checkout set fs/erofs include/uapi/linux include/trace/events) || true
               mkdir -p patches/erofs/fs
               cp -r /tmp/mt6885/fs/erofs patches/erofs/fs/ 2>/dev/null || true
-              cp /tmp/mt6885/include/uapi/linux/erofs_fs.h patches/erofs/ 2>/dev/null || true
+              mkdir -p patches/erofs/include/uapi/linux patches/erofs/include/trace/events
+              cp /tmp/mt6885/include/uapi/linux/erofs_fs.h patches/erofs/include/uapi/linux/ 2>/dev/null || true
+              cp /tmp/mt6885/include/trace/events/erofs.h patches/erofs/include/trace/events/ 2>/dev/null || true
               echo "EROFS source fetched from mt6873-dev"
             fi
           fi

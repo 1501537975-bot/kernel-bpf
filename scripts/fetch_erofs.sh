@@ -56,7 +56,7 @@ else
   trap 'rm -rf "$TMP"' EXIT
   if git clone --depth 1 --filter=blob:none --sparse \
       https://github.com/mk7x7/android_kernel_xiaomi_mt6768 "$TMP/mt" 2>/dev/null; then
-    (cd "$TMP/mt" && git sparse-checkout set fs/erofs include/uapi/linux/erofs_fs.h include/trace/events 2>/dev/null) || true
+    (cd "$TMP/mt" && git sparse-checkout set fs/erofs include/uapi/linux include/trace/events 2>/dev/null) || true
     if [ -d "$TMP/mt/fs/erofs" ]; then
       ERDFS_SRC="$TMP/mt/fs/erofs"
       ok "已从 mt6768 取得 erofs"
@@ -67,7 +67,7 @@ else
     log "回退到 mt6873-dev (mt6885)"
     if git clone --depth 1 --filter=blob:none --sparse \
         https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885 "$TMP/mt2" 2>/dev/null; then
-      (cd "$TMP/mt2" && git sparse-checkout set fs/erofs include/uapi/linux/erofs_fs.h include/trace/events 2>/dev/null) || true
+      (cd "$TMP/mt2" && git sparse-checkout set fs/erofs include/uapi/linux include/trace/events 2>/dev/null) || true
       if [ -d "$TMP/mt2/fs/erofs" ]; then
         ERDFS_SRC="$TMP/mt2/fs/erofs"
         ok "已从 mt6873-dev 取得 erofs"
@@ -91,31 +91,33 @@ if [ -f "$TMP/mt/include/trace/events/erofs.h" ]; then
   ok "已复制 include/trace/events/erofs.h"
 fi
 
-# (b) 修正 mt6768 erofs 的上游笔误:
-#     fs/erofs/internal.h:164 用了未定义的 VAL (应为函数参数 orig_val)
-#     报错: internal.h:164:41: error: 'VAL' undeclared (first use in this function)
-if [ -f "$KERNEL_DIR/fs/erofs/internal.h" ] && grep -q "VAL != EROFS_LOCKED_MAGIC" "$KERNEL_DIR/fs/erofs/internal.h"; then
-  sed -i 's/VAL != EROFS_LOCKED_MAGIC/orig_val != EROFS_LOCKED_MAGIC/' "$KERNEL_DIR/fs/erofs/internal.h"
-  ok "已修正 erofs internal.h 的 VAL -> orig_val 笔误"
-fi
-
 log "复制 fs/erofs"
 mkdir -p fs/erofs
 cp -r "$ERDFS_SRC"/. fs/erofs/
 ok "fs/erofs 已复制（$(find fs/erofs -name '*.c' | wc -l) 个 C 文件）"
 
-# erofs 需要的头文件
-if [ ! -f include/uapi/linux/erofs_fs.h ]; then
-  for src in "$ERDFS_SRC"/../../include/uapi/linux/erofs_fs.h \
-             "$TMP/mt/include/uapi/linux/erofs_fs.h" \
-             "$TMP/mt2/include/uapi/linux/erofs_fs.h"; do
-    if [ -f "$src" ]; then
-      mkdir -p include/uapi/linux
-      cp "$src" include/uapi/linux/
-      ok "已复制 erofs_fs.h"
-      break
-    fi
-  done
+# (b) 修正 mt6768 erofs 的上游笔误 (必须在复制之后做, 之前文件还不存在):
+#     fs/erofs/internal.h:164 用了未定义的 VAL (应为函数参数 orig_val)
+#     报错: internal.h:164:41: error: 'VAL' undeclared (first use in this function)
+if [ -f fs/erofs/internal.h ] && grep -q "VAL != EROFS_LOCKED_MAGIC" fs/erofs/internal.h; then
+  sed -i 's/VAL != EROFS_LOCKED_MAGIC/orig_val != EROFS_LOCKED_MAGIC/' fs/erofs/internal.h
+  ok "已修正 erofs internal.h 的 VAL -> orig_val 笔误"
+fi
+
+# (c) uapi 头文件必须到位 (EROFS_SUPER_MAGIC_V1 / EROFS_SUPER_OFFSET 等宏在这里)
+#     cone 模式的 sparse-checkout 忽略单个文件, 所以要整个 include/uapi/linux 目录
+for src in "$TMP/mt/include/uapi/linux/erofs_fs.h" \
+           "$TMP/mt2/include/uapi/linux/erofs_fs.h" \
+           "$ERDFS_SRC/../../include/uapi/linux/erofs_fs.h"; do
+  if [ -f "$src" ]; then
+    mkdir -p include/uapi/linux
+    cp "$src" include/uapi/linux/
+    ok "已复制 include/uapi/linux/erofs_fs.h ($(wc -c < include/uapi/linux/erofs_fs.h) B)"
+    break
+  fi
+done
+if ! grep -q "EROFS_SUPER_MAGIC_V1" include/uapi/linux/erofs_fs.h 2>/dev/null; then
+  warn "erofs_fs.h 缺失或不含 EROFS_SUPER_MAGIC_V1 -- EROFS 编译会失败"
 fi
 
 # fs/Makefile 注册
