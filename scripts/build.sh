@@ -202,15 +202,9 @@ if [ "$ENABLE_EROFS" = "yes" ]; then
     ok "erofs 已存在，跳过"
   else
     bash "$SCRIPTS_DIR/fetch_erofs.sh" || die "erofs 移植失败"
-    # erofs 需要 lz4 与 zstd 支持
-    scripts/config --file .config \
-      -e EROFS_FS -e EROFS_FS_XATTR -e EROFS_FS_ZIP \
-      -e LZ4 -e LZ4_DECOMPRESS -e ZSTD -e CRYPTO_LZ4 \
-      --enable CONFIG_EROFS_FS \
-      --enable CONFIG_EROFS_FS_XATTR \
-      --enable CONFIG_EROFS_FS_ZIP \
-      --enable CONFIG_LZ4_DECOMPRESS || true
-    ok "erofs 配置完成"
+    # config 不在这里设置 —— 此时 .config 还没生成 (defconfig 在第 7 步),
+    # EROFS 的 config 统一由后面的 "设置内核选项" 段处理。
+    ok "erofs 源码就绪, config 稍后统一设置"
   fi
 else
   log "[3/7] 跳过 erofs"
@@ -225,22 +219,8 @@ if [ "$ENABLE_BPF" = "yes" ]; then
   log "[4/7] 回合 5.10 BPF + sys_clone3"
   bash "$SCRIPTS_DIR/backport_bpf.sh" || die "BPF 回合失败"
   # BPF 需要这些内核选项
-  scripts/config --file .config \
-    --enable CONFIG_BPF_SYSCALL \
-    --enable CONFIG_BPF_JIT \
-    --enable CONFIG_BPF_JIT_ALWAYS_ON \
-    --enable CONFIG_DEBUG_INFO_BTF \
-    --enable CONFIG_PAHOLE_VERSION \
-    --enable CONFIG_BPF_LSM \
-    --disable CONFIG_BPF_UNPRIVILEGED \
-    --enable CONFIG_CGROUPS \
-    --enable CONFIG_CGROUP_BPF \
-    --enable CONFIG_CGROUP_SCHED \
-    --enable CONFIG_CGROUP_FREEZER \
-    --enable CONFIG_FHANDLE \
-    --enable CONFIG_INDIRECT_FD \
-    --enable CONFIG_MEMBARRIER || true
-  ok "BPF 内核选项配置完成"
+  # config 稍后统一设置 (此时 .config 尚未生成)
+  ok "BPF 源码回合完成, config 稍后统一设置"
 else
   log "[4/7] 跳过 BPF（注意：A16/A17 需要 BPF）"
 fi
@@ -338,14 +318,14 @@ log "    设置内核选项..."
 # ① MODVERSIONS: 原厂 defconfig 里没有 default y (默认 n),
 #    但原厂 .ko 的 vermagic 明确带 modversions -> 必须开,
 #    否则原厂 10 个 .ko 全部 "disagrees about version of symbol"
-scripts/config --file "$OUT_ABS/.config" --enable CONFIG_MODVERSIONS
+"$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" --enable CONFIG_MODVERSIONS
 
 # ② FHANDLE: 原厂 defconfig 显式关闭, 而 A16+ 的 BPF 需要它
-scripts/config --file "$OUT_ABS/.config" --enable CONFIG_FHANDLE
-scripts/config --file "$OUT_ABS/.config" --enable CONFIG_INDIRECT_FD
+"$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" --enable CONFIG_FHANDLE
+"$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" --enable CONFIG_INDIRECT_FD
 
 # ③ EROFS: A15+ 的 system/product/system_ext 全是 erofs, 没驱动直接卡开机
-scripts/config --file "$OUT_ABS/.config" \
+"$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" \
   --enable CONFIG_EROFS_FS \
   --enable CONFIG_EROFS_FS_XATTR \
   --enable CONFIG_EROFS_FS_ZIP \
@@ -366,12 +346,12 @@ scripts/config --file "$OUT_ABS/.config" \
 #
 # 栈保护只是安全加固项, 关掉不影响功能 (内核会回落到 REGULAR),
 # 而原厂 .ko 不依赖它。直接关掉 STRONG 最省事。
-scripts/config --file "$OUT_ABS/.config" --disable CONFIG_CC_STACKPROTECTOR_STRONG
-scripts/config --file "$OUT_ABS/.config" --enable CONFIG_CC_STACKPROTECTOR_REGULAR
+"$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" --disable CONFIG_CC_STACKPROTECTOR_STRONG
+"$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" --enable CONFIG_CC_STACKPROTECTOR_REGULAR
 ok "已关闭 STRONG 栈保护 (规避 compiler-check 探测失败), 回落 REGULAR"
 
 # ④ BPF + BTF: 本机内核已自带 BPF 主体, 但缺 BTF (A16+ 的 bpfloader 需要)
-scripts/config --file "$OUT_ABS/.config" \
+"$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" \
   --enable CONFIG_BPF_SYSCALL \
   --enable CONFIG_BPF_JIT \
   --enable CONFIG_BPF_JIT_ALWAYS_ON \
@@ -383,7 +363,7 @@ scripts/config --file "$OUT_ABS/.config" \
   --enable CONFIG_CGROUP_FREEZER
 
 # ⑤ Cgroup v2 (Android 11+ 需要)
-scripts/config --file "$OUT_ABS/.config" \
+"$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" \
   --enable CONFIG_CGROUPS \
   --enable CONFIG_CGROUP_SCHED \
   --enable CONFIG_MEMBARRIER
