@@ -36,13 +36,40 @@ jobs:
           repository: MiCode/Xiaomi_Kernel_OpenSource
           ref: cezanne-r-oss
           path: kernel
-          lfs: true
+          # 不启用 LFS: 原厂树里没有 LFS 对象, 但 lfs:true 会在
+          # "Setting up auth" 阶段卡住并拖垮整个 job (第 16 轮实测)
+          lfs: false
           fetch-depth: 1
+          # 完整 checkout —— BPF 补丁涉及 kernel/bpf/ include/ net/core/ 等多处,
+          # sparse 会漏文件导致 patch apply 失败
 
       - name: Checkout this build repo
         uses: actions/checkout@v4
         with:
           path: buildrepo
+
+      - name: Verify kernel source checkout
+        run: |
+          echo "=== 内核树 checkout 状态 ==="
+          ls -la kernel/ | head -20
+          echo ""
+          echo "=== 关键文件是否到位 ==="
+          for f in Makefile arch/arm64/configs/cezanne_user_defconfig \
+                   kernel/bpf/core.c kernel/bpf/verifier.c kernel/sys.c \
+                   include/linux/bpf.h include/uapi/linux/bpf_types.h \
+                   net/core/filter.c net/core/Makefile kernel/trace/bpf_trace.c; do
+            if [ -f "kernel/$f" ]; then
+              echo "  OK      $f  ($(stat -c%s kernel/$f) B)"
+            else
+              echo "  MISSING $f"
+            fi
+          done
+          echo ""
+          echo "=== 目录大小 ==="
+          du -sh kernel/ 2>/dev/null
+          echo "=== git 状态 ==="
+          cd kernel && git log --oneline -1 && git status --short | head -5
+          cd ..
 
       - name: Install build dependencies
         run: |
