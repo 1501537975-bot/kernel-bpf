@@ -52,10 +52,20 @@ jobs:
             imagemagick lib32readline-dev lib32z1-dev libelf-dev liblz4-tool lz4 \
             libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool \
             squashfs-tools xsltproc zip zlib1g-dev libncurses5 \
-            dwarves python3 rsync cpio
+            dwarves python3 rsync cpio \
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+            clang lld llvm libclang-dev \
+            linux-headers-generic || true
           # BPF 需要 pahole 生成 BTF
           sudo apt-get install -y -qq dwarves || true
           git lfs install
+          echo "=== 工具链自检 ==="
+          which aarch64-linux-gnu-gcc && aarch64-linux-gnu-gcc --version | head -1
+          which clang && clang --version | head -1
+          which ld.lld && ld.lld --version | head -1
+          which pahole && pahole --version
+          echo "=== zip/python3 自检 ==="
+          which zip; which python3
 
       - name: Set up cache
         uses: actions/cache@v4
@@ -93,6 +103,31 @@ jobs:
           fi
           ls -la patches/erofs/fs/erofs 2>/dev/null | head -20 || echo "no erofs prefetch"
 
+      - name: Pre-check BPF patches
+        run: |
+          echo "=== 验证 13 个 BPF/clone3 patch 能否干净 apply 到原厂树 ==="
+          cd kernel
+          FAIL=0
+          for p in ../buildrepo/patches/mt6768-bpf/*.patch ../buildrepo/patches/clone3/*.patch; do
+            [ -f "$p" ] || continue
+            name=$(basename "$p")
+            if git apply --check "$p" 2>/tmp/pe.txt; then
+              echo "  [ OK ] $name"
+            else
+              echo "  [FAIL] $name"
+              head -3 /tmp/pe.txt | sed 's/^/         /'
+              FAIL=$((FAIL+1))
+            fi
+          done
+          echo ""
+          echo "失败数: $FAIL"
+          if [ "$FAIL" -gt 0 ]; then
+            echo "::error::有 patch 无法应用, 请检查内核树版本"
+            exit 1
+          fi
+          echo "::notice::全部 patch 均可应用 ✓"
+          cd ..
+
       - name: Build kernel
         env:
           enable_erofs: ${{ inputs.enable_erofs }}
@@ -105,10 +140,9 @@ jobs:
           PATCH_DIR: buildrepo/patches
           EROFS_TREE: buildrepo/patches/erofs
           SCRIPTS_DIR: buildrepo/scripts
-          ANYKERNEL_DIR: buildrepo/anykernel
         run: |
           cd buildrepo
-          chmod +x scripts/*.sh anykernel/*.sh
+          chmod +x scripts/*.sh
           bash scripts/build.sh 2>&1 | tee build.log
 
       - name: Verify outputs

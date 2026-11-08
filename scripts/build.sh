@@ -44,32 +44,65 @@ log "localversion=$LOCALVERSION"
 log "[1/7] 准备交叉编译工具链"
 export ARCH=arm64
 export SUBARCH=arm64
-export CROSS_COMPILE=aarch64-linux-android-
-export CLANG_TRIPLE=aarch64-linux-gnu-
-export CC=clang
-export LD=ld.lld
+
+# ── 探测可用的交叉编译器 ──────────────────────────────────
+# 原厂 MTK 树用的是 aarch64-linux-androidkernel- (AOSP 预编译 clang),
+# 但 GitHub Actions 上没有。Ubuntu 的 gcc-aarch64-linux-gnu / clang 都能编 4.14。
+# 依次尝试, 谁能用上谁。
+CROSS=""
+CC_CMD=""
+LD_CMD=""
+
+if [ -n "$CLANG_PREBUILT_BIN" ] && [ -x "$CLANG_PREBUILT_BIN/clang" ]; then
+  export PATH="${CLANG_PREBUILT_BIN}:$PATH"
+  CROSS="aarch64-linux-android-"
+  CC_CMD="clang"
+  LD_CMD="ld.lld"
+  ok "使用内核自带 clang: $(clang --version | head -1)"
+elif command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
+  CROSS="aarch64-linux-gnu-"
+  CC_CMD="aarch64-linux-gnu-gcc"
+  LD_CMD="aarch64-linux-gnu-ld"
+  ok "使用 GCC 交叉工具链: $($CC_CMD --version | head -1)"
+elif command -v clang >/dev/null 2>&1; then
+  CROSS="aarch64-linux-gnu-"
+  CC_CMD="clang --target=aarch64-linux-gnu"
+  LD_CMD="ld.lld"
+  ok "使用 clang 交叉: $(clang --version | head -1)"
+else
+  die "找不到可用的交叉编译器 (需要 gcc-aarch64-linux-gnu 或 clang)"
+fi
+
+export CROSS_COMPILE="$CROSS"
+export CC="$CC_CMD"
+export LD="$LD_CMD"
 export NM=llvm-nm
 export OBJCOPY=llvm-objcopy
 export OBJDUMP=llvm-objdump
 export STRIP=llvm-strip
-export HOSTCC=clang
-export HOSTCXX=clang++
-export LLVM_IAS=1
+export HOSTCC=gcc
+export HOSTCXX=g++
+export CLANG_TRIPLE=aarch64-linux-gnu-
 
-if [ -x "${CLANG_PREBUILT_BIN}/clang" ]; then
-  export PATH="${CLANG_PREBUILT_BIN}:$PATH"
-  ok "使用内核自带 clang: $(clang --version | head -1)"
+# 用 clang 时才启用 LLVM_IAS (集成汇编器), GCC 下必须关
+if echo "$CC_CMD" | grep -q clang; then
+  export LLVM_IAS=1
 else
-  # 回退：Ubuntu/Debian 的 aarch64-linux-gnu 工具链 + clang
-  if ! command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
-    sudo apt-get update -qq && sudo apt-get install -y -qq \
-      gcc-aarch64-linux-gnu gcc-12 clang lld llvm bc bison flex libssl-dev libelf-dev \
-      python3 ccache zip kmod || die "工具链安装失败"
-  fi
-  export CROSS_COMPILE=aarch64-linux-gnu-
-  export CC="clang --target=aarch64-linux-gnu-"
-  export HOSTCC=clang
-  ok "使用系统工具链: $(clang --version | head -1)"
+  export LLVM_IAS=0
+fi
+
+# 编译器自检 —— 前缀与实际二进制不匹配是 4.14 编译最常见的坑
+log "    编译器自检..."
+if ! command -v "${CROSS}gcc" >/dev/null 2>&1 && ! echo "$CC_CMD" | grep -q "^clang"; then
+  die "编译器前缀与实际不匹配: CROSS_COMPILE=$CROSS 但找不到 ${CROSS}gcc"
+fi
+"$CC_CMD" --version 2>/dev/null | head -1 | sed 's/^/      /' || true
+
+# BPF 需要 pahole 生成 BTF
+if command -v pahole >/dev/null 2>&1; then
+  ok "pahole: $(pahole --version 2>&1 | head -1)"
+else
+  warn "未安装 pahole -> CONFIG_DEBUG_INFO_BTF 无法生效 (A16+ 需要 BTF!)"
 fi
 
 # ─────────────────────────────────────────────────────────────
@@ -176,9 +209,9 @@ done
 [ -n "$DEFCONFIG" ] || die "在 arch/arm64/configs/ 下找不到 cezanne 的 defconfig (实际内容: $(ls arch/arm64/configs/ 2>/dev/null | tr '\n' ' '))"
 log "    使用 defconfig: $DEFCONFIG"
 
-make O=../$OUT ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
-     CC="clang --target=aarch64-linux-gnu-" LD=ld.lld \
-     LLVM_IAS=1 LOCALVERSION="$LOCALVERSION" \
+make O=../$OUT ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" \
+     CC="$CC" LD="$LD" HOSTCC="$HOSTCC" \
+     LLVM_IAS="$LLVM_IAS" LOCALVERSION="$LOCALVERSION" \
      "$DEFCONFIG" || die "defconfig 失败"
 
 # ── 关键: 原厂 defconfig 里 CONFIG_MODVERSIONS 没有 default y (默认 n),
@@ -191,9 +224,9 @@ scripts/config --file "$OUT_ABS/.config" --enable CONFIG_FHANDLE
 scripts/config --file "$OUT_ABS/.config" --enable CONFIG_INDIRECT_FD
 ok "MODVERSIONS / FHANDLE / INDIRECT_FD 已开启"
 
-make O=../$OUT ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
-     CC="clang --target=aarch64-linux-gnu-" LD=ld.lld \
-     LLVM_IAS=1 LOCALVERSION="$LOCALVERSION" \
+make O=../$OUT ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" \
+     CC="$CC" LD="$LD" HOSTCC="$HOSTCC" \
+     LLVM_IAS="$LLVM_IAS" LOCALVERSION="$LOCALVERSION" \
      -j"$(nproc)" Image.gz-dtb Image.gz || die "编译失败"
 
 # ─────────────────────────────────────────────────────────────
@@ -220,9 +253,9 @@ fi
 ok "已固定 LOCALVERSION=$LOCALVERSION 且关闭 LOCALVERSION_AUTO"
 
 # 重编一次让版本串生效 (增量, 很快)
-make O=../$OUT ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
-     CC="clang --target=aarch64-linux-gnu-" LD=ld.lld \
-     LLVM_IAS=1 LOCALVERSION="$LOCALVERSION" \
+make O=../$OUT ARCH=arm64 CROSS_COMPILE="$CROSS_COMPILE" \
+     CC="$CC" LD="$LD" HOSTCC="$HOSTCC" \
+     LLVM_IAS="$LLVM_IAS" LOCALVERSION="$LOCALVERSION" \
      -j"$(nproc)" Image.gz-dtb Image.gz || die "重编失败 (版本串对齐)"
 
 cd ..
