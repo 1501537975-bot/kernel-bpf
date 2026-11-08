@@ -173,18 +173,11 @@ fi
 # 原厂用 clang 编译 (对 format 字符串等更宽容), 换 GCC 后这些老代码会大量
 # 报 "all warnings being treated as errors"。
 # CFLAGS_KERNEL 追加在 KBUILD_CFLAGS 之后 -> 可以后置覆盖。
-export EXTRA_CFLAGS="\
- -fgnu89-inline \
- -Wno-strict-prototypes -Wno-old-style-definition -Wno-implicit-fallthrough \
- -Wno-maybe-uninitialized -Wno-unused-but-set-variable -Wno-unused-function \
- -Wno-unused-variable -Wno-sign-compare -Wno-misleading-indentation \
- -Wno-address-of-packed-member -Wno-pointer-arith -Wno-attribute-alias \
- -Wno-array-bounds -Wno-stringop-overflow -Wno-stringop-overread \
- -Wno-format-overflow -Wno-format-truncation -Wno-format-security \
- -Wno-incompatible-pointer-types -Wno-int-conversion -Wno-implicit-int \
- -Wno-implicit-function-declaration -Wno-return-type -Wno-date-time \
- -Wno-designated-init -Wno-missing-field-initializers -Wno-type-limits \
- -Wno-tautological-compare -Wno-cpp -Wno-error"
+# ★ 必须写成单行! 双引号内的 "反斜杠+换行" 是字面量, 不会被 bash 续行,
+#   传给 make 的就是一个带反斜杠和换行的乱码 -> 里面的 flag 全部失效
+#   (2026-11-08 实测: -fgnu89-inline 这么写就是不生效)
+EXTRA_CFLAGS="-fgnu89-inline -Wno-strict-prototypes -Wno-old-style-definition -Wno-implicit-fallthrough -Wno-maybe-uninitialized -Wno-unused-but-set-variable -Wno-unused-function -Wno-unused-variable -Wno-sign-compare -Wno-misleading-indentation -Wno-address-of-packed-member -Wno-pointer-arith -Wno-attribute-alias -Wno-array-bounds -Wno-stringop-overflow -Wno-stringop-overread -Wno-format-overflow -Wno-format-truncation -Wno-format-security -Wno-incompatible-pointer-types -Wno-int-conversion -Wno-implicit-int -Wno-implicit-function-declaration -Wno-return-type -Wno-date-time -Wno-designated-init -Wno-missing-field-initializers -Wno-type-limits -Wno-tautological-compare -Wno-cpp -Wno-error"
+export EXTRA_CFLAGS
 
 # 说明:
 #   -fgnu89-inline —— MTK 内核大量使用 "inline xxx(); / extern inline xxx() {...}" 模式
@@ -435,6 +428,25 @@ ok "已关闭栈保护 (STRONG/REGULAR/总开关), 规避 compiler-check 探测�
   --disable CONFIG_BLK_INLINE_ENCRYPTION \
   --disable CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK
 ok "已关闭 CONFIG_BLK_INLINE_ENCRYPTION (规避 GCC inline 语义冲突)"
+
+# ③-d 豁免 MTK 充电驱动的 -mgeneral-regs-only
+#     drivers/power/supply/ti_cezanne/bq2597x_charger.c 用 kernel_neon_begin()/
+#     kernel_neon_end() 做定点浮点换算, 但 arm64 内核给所有文件默认加
+#     -mgeneral-regs-only (禁止内核态用 FP/SIMD), clang 容忍而 GCC 报错:
+#       error: '-mgeneral-regs-only' is incompatible with the use of
+#              floating-point types
+#     内核标准豁免机制: CFLAGS_REMOVE_<file>.o
+CHG="$KERNEL_DIR/drivers/power/supply/ti_cezanne/Makefile"
+if [ -f "$CHG" ] && ! grep -q "CFLAGS_REMOVE_bq2597x_charger.o" "$CHG"; then
+  cat >> "$CHG" << 'CHGEOF'
+
+# cezanne: 该驱动用 kernel_neon_begin() 做浮点换算, 需移除 -mgeneral-regs-only
+CFLAGS_REMOVE_bq2597x_charger.o += -mgeneral-regs-only
+CFLAGS_REMOVE_pd_policy_manager.o += -mgeneral-regs-only
+CFLAGS_REMOVE_cp_qc30.o += -mgeneral-regs-only
+CHGEOF
+  ok "ti_cezanne/Makefile 已豁免 -mgeneral-regs-only"
+fi
 
 # ④-b net/core/Makefile 必须登记 sock_map.o
 #     mt6768 把 sockmap 实现从 kernel/bpf/sockmap.c 移到了 net/core/sock_map.c,
