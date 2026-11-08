@@ -1,0 +1,41 @@
+From: cezanne-bpf-backport <auto@local>
+Subject: [PATCH] BPF backport: include/linux/bpf_lirc.h
+
+回合自同代 MTK 树 mk7x7/android_kernel_xiaomi_mt6768@skyron
+目标: 让 4.14 具备 Android 16/17 所需的 BPF 能力 (sk_msg / BTF / arraymap)
+操作: 新增文件
+
+---
+--- /dev/null
++++ b/include/linux/bpf_lirc.h
+@@ -0,0 +1,30 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _BPF_LIRC_H
++#define _BPF_LIRC_H
++
++#include <uapi/linux/bpf.h>
++
++#ifdef CONFIG_BPF_LIRC_MODE2
++int lirc_prog_attach(const union bpf_attr *attr, struct bpf_prog *prog);
++int lirc_prog_detach(const union bpf_attr *attr);
++int lirc_prog_query(const union bpf_attr *attr, union bpf_attr __user *uattr);
++#else
++static inline int lirc_prog_attach(const union bpf_attr *attr,
++				   struct bpf_prog *prog)
++{
++	return -EINVAL;
++}
++
++static inline int lirc_prog_detach(const union bpf_attr *attr)
++{
++	return -EINVAL;
++}
++
++static inline int lirc_prog_query(const union bpf_attr *attr,
++				  union bpf_attr __user *uattr)
++{
++	return -EINVAL;
++}
++#endif
++
++#endif /* _BPF_LIRC_H */

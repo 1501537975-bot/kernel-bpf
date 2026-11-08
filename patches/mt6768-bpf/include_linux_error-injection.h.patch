@@ -1,0 +1,38 @@
+From: cezanne-bpf-backport <auto@local>
+Subject: [PATCH] BPF backport: include/linux/error-injection.h
+
+回合自同代 MTK 树 mk7x7/android_kernel_xiaomi_mt6768@skyron
+目标: 让 4.14 具备 Android 16/17 所需的 BPF 能力 (sk_msg / BTF / arraymap)
+操作: 新增文件
+
+---
+--- /dev/null
++++ b/include/linux/error-injection.h
+@@ -0,0 +1,27 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _LINUX_ERROR_INJECTION_H
++#define _LINUX_ERROR_INJECTION_H
++
++#ifdef CONFIG_FUNCTION_ERROR_INJECTION
++
++#include <asm/error-injection.h>
++
++extern bool within_error_injection_list(unsigned long addr);
++extern int get_injectable_error_type(unsigned long addr);
++
++#else /* !CONFIG_FUNCTION_ERROR_INJECTION */
++
++#include <asm-generic/error-injection.h>
++static inline bool within_error_injection_list(unsigned long addr)
++{
++	return false;
++}
++
++static inline int get_injectable_error_type(unsigned long addr)
++{
++	return EI_ETYPE_NONE;
++}
++
++#endif
++
++#endif /* _LINUX_ERROR_INJECTION_H */
