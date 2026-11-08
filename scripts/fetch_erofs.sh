@@ -56,7 +56,7 @@ else
   trap 'rm -rf "$TMP"' EXIT
   if git clone --depth 1 --filter=blob:none --sparse \
       https://github.com/mk7x7/android_kernel_xiaomi_mt6768 "$TMP/mt" 2>/dev/null; then
-    (cd "$TMP/mt" && git sparse-checkout set fs/erofs include/uapi/linux/erofs_fs.h 2>/dev/null) || true
+    (cd "$TMP/mt" && git sparse-checkout set fs/erofs include/uapi/linux/erofs_fs.h include/trace/events 2>/dev/null) || true
     if [ -d "$TMP/mt/fs/erofs" ]; then
       ERDFS_SRC="$TMP/mt/fs/erofs"
       ok "已从 mt6768 取得 erofs"
@@ -67,7 +67,7 @@ else
     log "回退到 mt6873-dev (mt6885)"
     if git clone --depth 1 --filter=blob:none --sparse \
         https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885 "$TMP/mt2" 2>/dev/null; then
-      (cd "$TMP/mt2" && git sparse-checkout set fs/erofs include/uapi/linux/erofs_fs.h 2>/dev/null) || true
+      (cd "$TMP/mt2" && git sparse-checkout set fs/erofs include/uapi/linux/erofs_fs.h include/trace/events 2>/dev/null) || true
       if [ -d "$TMP/mt2/fs/erofs" ]; then
         ERDFS_SRC="$TMP/mt2/fs/erofs"
         ok "已从 mt6873-dev 取得 erofs"
@@ -80,6 +80,23 @@ if [ -z "$ERDFS_SRC" ]; then
   warn "无法取得 erofs 源码"
   warn "请手动把 fs/erofs 目录放到内核树，或放到 \$PATCH_DIR/erofs/fs/erofs"
   exit 1
+fi
+
+# ── 补齐依赖 ──────────────────────────────────────────
+# (a) include/trace/events/erofs.h —— fs/erofs/super.c 需要它
+#     (fs/erofs/super.c:15: fatal error: trace/events/erofs.h: No such file)
+if [ -f "$TMP/mt/include/trace/events/erofs.h" ]; then
+  mkdir -p "$KERNEL_DIR/include/trace/events"
+  cp "$TMP/mt/include/trace/events/erofs.h" "$KERNEL_DIR/include/trace/events/"
+  ok "已复制 include/trace/events/erofs.h"
+fi
+
+# (b) 修正 mt6768 erofs 的上游笔误:
+#     fs/erofs/internal.h:164 用了未定义的 VAL (应为函数参数 orig_val)
+#     报错: internal.h:164:41: error: 'VAL' undeclared (first use in this function)
+if [ -f "$KERNEL_DIR/fs/erofs/internal.h" ] && grep -q "VAL != EROFS_LOCKED_MAGIC" "$KERNEL_DIR/fs/erofs/internal.h"; then
+  sed -i 's/VAL != EROFS_LOCKED_MAGIC/orig_val != EROFS_LOCKED_MAGIC/' "$KERNEL_DIR/fs/erofs/internal.h"
+  ok "已修正 erofs internal.h 的 VAL -> orig_val 笔误"
 fi
 
 log "复制 fs/erofs"
