@@ -448,6 +448,22 @@ CHGEOF
   ok "ti_cezanne/Makefile 已豁免 -mgeneral-regs-only"
 fi
 
+# ③-e 修正 MTK 头文件里多余的 "extern inline" 声明
+#     GCC 5+ 用严格 C99 inline 语义: 头文件写 "extern inline int f(...);"
+#     而 .c 里是普通定义 (为了 EXPORT_SYMBOL) 时, GCC 会尝试内联却找不到函数体 ->
+#       error: inlining failed in call to 'always_inline' 'f':
+#              function body not available
+#     典型位置: include/linux/keyslot-manager.h、drivers/misc/mediatek/typec/*/inc/tcpci_typec.h
+#     脚本只删除 "inline" 关键字本身, 其余字节原样保留。
+if [ -f "$SCRIPTS_DIR/fix_extern_inline.py" ] && command -v python3 >/dev/null 2>&1; then
+  log "    修正 extern inline 声明 (GCC inline 语义)"
+  if python3 "$SCRIPTS_DIR/fix_extern_inline.py" "$KERNEL_DIR" 2>&1 | tail -20 | sed 's/^/      /'; then
+    ok "extern inline 修正完成"
+  else
+    warn "extern inline 修正脚本执行异常"
+  fi
+fi
+
 # ④-b net/core/Makefile 必须登记 sock_map.o
 #     mt6768 把 sockmap 实现从 kernel/bpf/sockmap.c 移到了 net/core/sock_map.c,
 #     而原厂的 net/core/Makefile 没有这条规则 -> 不补会链接失败
