@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       enable_erofs:
-        description: '移植 fs/erofs（Android 15+ 分区必需）'
+        description: '移植 fs/erofs（仅 erofs 格式镜像需要; ext4 镜像用不到）'
         type: boolean
-        default: true
+        default: false
       enable_bpf:
         description: '回合 BPF + sys_clone3（A16/A17 必需; A14 档不需要, 当前实验性）'
         type: boolean

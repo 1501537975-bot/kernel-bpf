@@ -204,7 +204,16 @@ if [ "$ENABLE_EROFS" = "yes" ]; then
   if [ -d fs/erofs ] && grep -q "CONFIG_EROFS_FS=y" .config 2>/dev/null; then
     ok "erofs 已存在，跳过"
   else
-    bash "$SCRIPTS_DIR/fetch_erofs.sh" || die "erofs 移植失败"
+    # EROFS 也是**可选**: 
+    #   实测手机当前跑的 A16 (SDK36) 的 /system 和 /vendor 都是 ext4, 0 个 erofs 挂载
+    #   -> Android 14/15/16 的 GSI 镜像基本都是 ext4, EROFS 并非必需
+    #   -> 而且 mt6768/mt6873-dev 的 fs/erofs 代码从未真正编译过
+    #      (它们的树没开 CONFIG_EROFS_FS), 存在上游笔误与配套头文件缺失
+    if bash "$SCRIPTS_DIR/fetch_erofs.sh"; then
+      ok "EROFS 移植完成"
+    else
+      warn "EROFS 移植未成功 -> 继续构建 (ext4 镜像不受影响)"
+    fi
     # config 不在这里设置 —— 此时 .config 还没生成 (defconfig 在第 7 步),
     # EROFS 的 config 统一由后面的 "设置内核选项" 段处理。
     ok "erofs 源码就绪, config 稍后统一设置"
