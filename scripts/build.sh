@@ -173,7 +173,28 @@ fi
 # 原厂用 clang 编译 (对 format 字符串等更宽容), 换 GCC 后这些老代码会大量
 # 报 "all warnings being treated as errors"。
 # CFLAGS_KERNEL 追加在 KBUILD_CFLAGS 之后 -> 可以后置覆盖。
-export EXTRA_CFLAGS="-Wno-strict-prototypes -Wno-old-style-definition -Wno-implicit-fallthrough -Wno-maybe-uninitialized -Wno-unused-but-set-variable -Wno-unused-function -Wno-unused-variable -Wno-sign-compare -Wno-misleading-indentation -Wno-address-of-packed-member -Wno-pointer-arith -Wno-attribute-alias -Wno-array-bounds -Wno-stringop-overflow -Wno-stringop-overread -Wno-format-overflow -Wno-format-truncation -Wno-format-security -Wno-incompatible-pointer-types -Wno-int-conversion -Wno-implicit-int -Wno-implicit-function-declaration -Wno-return-type -Wno-date-time -Wno-designated-init -Wno-dangling-pointer -Wno-missing-field-initializers -Wno-type-limits -Wno-tautological-compare -Wno-sign-compare -Wno-cpp -Wno-error -Wno-compare-distinct-pointer-types"
+export EXTRA_CFLAGS="\
+ -fgnu89-inline \
+ -Wno-strict-prototypes -Wno-old-style-definition -Wno-implicit-fallthrough \
+ -Wno-maybe-uninitialized -Wno-unused-but-set-variable -Wno-unused-function \
+ -Wno-unused-variable -Wno-sign-compare -Wno-misleading-indentation \
+ -Wno-address-of-packed-member -Wno-pointer-arith -Wno-attribute-alias \
+ -Wno-array-bounds -Wno-stringop-overflow -Wno-stringop-overread \
+ -Wno-format-overflow -Wno-format-truncation -Wno-format-security \
+ -Wno-incompatible-pointer-types -Wno-int-conversion -Wno-implicit-int \
+ -Wno-implicit-function-declaration -Wno-return-type -Wno-date-time \
+ -Wno-designated-init -Wno-missing-field-initializers -Wno-type-limits \
+ -Wno-tautological-compare -Wno-cpp -Wno-error"
+
+# 说明:
+#   -fgnu89-inline —— MTK 内核大量使用 "inline xxx(); / extern inline xxx() {...}" 模式
+#     (如 include/linux/keyslot-manager.h 的 ksm_flock)。这是 C89 的 inline 语义,
+#     clang 一直容忍, 但 GCC 5+ 用更严格的 C99 语义 ->
+#       error: inlining failed in call to 'always_inline' 'ksm_flock':
+#              function body not available
+#     -fgnu89-inline 恢复 C89 语义, 这是 MTK/clang 内核用 GCC 编译的标准做法。
+#   去掉 -Wno-dangling-pointer / -Wno-compare-distinct-pointer-types
+#     (GCC 11 不认识这两个选项, 只会刷 "unrecognized command-line option" 噪音)
 
 # 编译器自检 —— 前缀与实际二进制不匹配是 4.14 编译最常见的坑
 log "    编译器自检..."
