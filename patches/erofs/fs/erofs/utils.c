@@ -28,6 +28,14 @@ static atomic_long_t erofs_global_shrink_cnt;
 #define __erofs_workgroup_get(grp)	atomic_inc(&(grp)->refcount)
 #define __erofs_workgroup_put(grp)	atomic_dec(&(grp)->refcount)
 
+/*
+ * 4.14 的 struct radix_tree_root 没有 .lock 成员（那是新版 xarray 才有的），
+ * 原代码 sbi->workstn_tree.lock 编不过：
+ *   utils.c:87: error: 'struct radix_tree_root' has no member named 'lock'
+ * 用一个文件级 rw_semaphore 顶替，语义不变。
+ */
+static DECLARE_RWSEM(erofs_workstn_lock);
+
 static int erofs_workgroup_get(struct erofs_workgroup *grp)
 {
 	int o;
