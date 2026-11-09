@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       enable_erofs:
-        description: '移植 fs/erofs（仅 erofs 格式镜像需要; ext4 镜像用不到）'
+        description: '移植 fs/erofs —— ★必需: 实测 K40G A16/A17 移植包的 system/product/system_ext/vendor 全是 EROFS 格式, 原厂内核没这驱动刷不了'
         type: boolean
-        default: false
+        default: true
       enable_bpf:
         description: '回合 BPF + sys_clone3（A16/A17 必需; A14 档不需要, 当前实验性）'
         type: boolean
@@ -123,32 +123,18 @@ jobs:
       - name: Prepare EROFS source (pre-fetch, avoid network flakiness)
         run: |
           cd buildrepo
-          mkdir -p patches
-          # 从同代 MTK 树预取 erofs（4.19 才有的驱动）
-          git clone --depth 1 --filter=blob:none --sparse \
-            https://github.com/mk7x7/android_kernel_xiaomi_mt6768 /tmp/mt6768 || true
-          if [ -d /tmp/mt6768/fs/erofs ]; then
-            (cd /tmp/mt6768 && git sparse-checkout set fs/erofs include/uapi/linux include/trace/events) || true
-            mkdir -p patches/erofs/fs
-            cp -r /tmp/mt6768/fs/erofs patches/erofs/fs/ 2>/dev/null || true
-            mkdir -p patches/erofs/include/uapi/linux patches/erofs/include/trace/events
-            cp /tmp/mt6768/include/uapi/linux/erofs_fs.h patches/erofs/include/uapi/linux/ 2>/dev/null || true
-            cp /tmp/mt6768/include/trace/events/erofs.h patches/erofs/include/trace/events/ 2>/dev/null || true
-            echo "EROFS source fetched from mt6768"
-          else
-            git clone --depth 1 --filter=blob:none --sparse \
-              https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885 /tmp/mt6885 || true
-            if [ -d /tmp/mt6885/fs/erofs ]; then
-              (cd /tmp/mt6885 && git sparse-checkout set fs/erofs include/uapi/linux include/trace/events) || true
-              mkdir -p patches/erofs/fs
-              cp -r /tmp/mt6885/fs/erofs patches/erofs/fs/ 2>/dev/null || true
-              mkdir -p patches/erofs/include/uapi/linux patches/erofs/include/trace/events
-              cp /tmp/mt6885/include/uapi/linux/erofs_fs.h patches/erofs/include/uapi/linux/ 2>/dev/null || true
-              cp /tmp/mt6885/include/trace/events/erofs.h patches/erofs/include/trace/events/ 2>/dev/null || true
-              echo "EROFS source fetched from mt6873-dev"
-            fi
-          fi
-          ls -la patches/erofs/fs/erofs 2>/dev/null | head -20 || echo "no erofs prefetch"
+          # ★ 2026-11-09 起: erofs 源码已**预置在仓库** patches/erofs/ 里
+          #   (来自 mt6873-dev 4.14.336 的原生 fs/erofs, 与 cezanne 同代码基)
+          #   不再需要现场克隆 mt6768/mt6885 —— 省时间且不受网络影响。
+          echo "=== 预置 erofs 源码 ==="
+          ls -la patches/erofs/fs/erofs/ 2>/dev/null | head -25
+          echo ""
+          echo "C 文件数: $(find patches/erofs/fs/erofs -name '*.c' 2>/dev/null | wc -l)"
+          test -f patches/erofs/fs/erofs/Kconfig || {
+            echo "::error::预置 erofs 源码缺失"; exit 1; }
+          test -f patches/erofs/include/trace/events/erofs.h || {
+            echo "::error::预置 trace/events/erofs.h 缺失"; exit 1; }
+          echo "::notice::erofs 源码就绪 ✓"
 
       - name: Pre-check BPF patches
         run: |

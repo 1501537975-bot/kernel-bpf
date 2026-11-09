@@ -386,11 +386,15 @@ log "    设置内核选项..."
 "$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" --enable CONFIG_FHANDLE
 "$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" --enable CONFIG_INDIRECT_FD
 
-# ③ EROFS: A15+ 的 system/product/system_ext 全是 erofs, 没驱动直接卡开机
+# ③ EROFS: ★必需 (2026-11-09 实测)
+#    K40G A16/A17 移植包的 system/product/system_ext/vendor **全部是 EROFS 格式**
+#    (magic 0xE0F5E1E2), 原厂内核没这个驱动 -> 挂载 system 直接失败 -> 卡开机。
+#    ★ 但实测这些镜像 **没有压缩** (feature_compat=0x07, 无 COMPRESS 位),
+#      所以 **不需要 CONFIG_EROFS_FS_ZIP** —— 省掉 LZ4 解压那一整套依赖, 编译风险大降。
 "$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" \
   --enable CONFIG_EROFS_FS \
   --enable CONFIG_EROFS_FS_XATTR \
-  --enable CONFIG_EROFS_FS_ZIP \
+  --disable CONFIG_EROFS_FS_ZIP \
   --enable CONFIG_LZ4 \
   --enable CONFIG_LZ4_DECOMPRESS \
   --enable CONFIG_CRYPTO \

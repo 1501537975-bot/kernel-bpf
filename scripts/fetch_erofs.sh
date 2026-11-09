@@ -40,18 +40,22 @@ fi
 log "查找可用的 erofs 源"
 
 # 优先顺序：
-#   1) 本地 patch 目录里预置的 erofs 源码（最可靠）
-#   2) 从同代 MTK 树克隆（MT6768 / MT6885）
+#   1) 本仓库 patches/erofs/ 里预置的 erofs 源码（最可靠, 不依赖网络克隆）
+#      ★ 2026-11-09 起预置: 来自 mt6873-dev (4.14.336) 的原生 fs/erofs
+#        —— 与 cezanne 4.14.186 同代码基, 依赖分析: 26 个头里只缺 2 个
+#   2) 外部 EROFS_TREE 目录
+#   3) 现场克隆 mt6768 / mt6885
 ERDFS_SRC=""
+PRESET="$PATCH_DIR/erofs/fs/erofs"
 
-if [ -d "$PATCH_DIR/erofs/fs/erofs" ]; then
-  ERDFS_SRC="$PATCH_DIR/erofs/fs/erofs"
-  log "使用本地预置 erofs 源码"
+if [ -d "$PRESET" ]; then
+  ERDFS_SRC="$PRESET"
+  log "使用仓库预置的 erofs 源码 (mt6873-dev 4.14.336 原生版)"
 elif [ -d "$EROFS_TREE/fs/erofs" ]; then
   ERDFS_SRC="$EROFS_TREE/fs/erofs"
   log "使用外部 erofs 树"
 else
-  log "克隆 MT6768 (同代 4.14) 取 erofs"
+  log "预置源缺失, 尝试现场克隆"
   TMP=$(mktemp -d)
   trap 'rm -rf "$TMP"' EXIT
   if git clone --depth 1 --filter=blob:none --sparse \
@@ -62,10 +66,11 @@ else
       ok "已从 mt6768 取得 erofs"
     fi
   fi
-  # 兜底 2: mt6873-dev（已有整理好的 erofs 提交）
+  # 兜底 2: mt6873-dev（分支是 cgroup-v2, 不是 main!）
   if [ -z "$ERDFS_SRC" ]; then
-    log "回退到 mt6873-dev (mt6885)"
+    log "回退到 mt6873-dev (分支 cgroup-v2)"
     if git clone --depth 1 --filter=blob:none --sparse \
+        -b cgroup-v2 \
         https://github.com/mt6873-dev/android_kernel_xiaomi_mt6885 "$TMP/mt2" 2>/dev/null; then
       (cd "$TMP/mt2" && git sparse-checkout set fs/erofs include/uapi/linux include/trace/events 2>/dev/null) || true
       if [ -d "$TMP/mt2/fs/erofs" ]; then
@@ -85,10 +90,22 @@ fi
 # ── 补齐依赖 ──────────────────────────────────────────
 # (a) include/trace/events/erofs.h —— fs/erofs/super.c 需要它
 #     (fs/erofs/super.c:15: fatal error: trace/events/erofs.h: No such file)
-if [ -f "$TMP/mt/include/trace/events/erofs.h" ]; then
+#     ★ 预置源里已经带了 include/trace/events/erofs.h, 优先用它
+if [ -f "$PATCH_DIR/erofs/include/trace/events/erofs.h" ]; then
+  mkdir -p "$KERNEL_DIR/include/trace/events"
+  cp "$PATCH_DIR/erofs/include/trace/events/erofs.h" "$KERNEL_DIR/include/trace/events/"
+  ok "已复制 include/trace/events/erofs.h (预置)"
+elif [ -f "$TMP/mt/include/trace/events/erofs.h" ]; then
   mkdir -p "$KERNEL_DIR/include/trace/events"
   cp "$TMP/mt/include/trace/events/erofs.h" "$KERNEL_DIR/include/trace/events/"
   ok "已复制 include/trace/events/erofs.h"
+elif [ -f "$TMP/mt2/include/trace/events/erofs.h" ]; then
+  mkdir -p "$KERNEL_DIR/include/trace/events"
+  cp "$TMP/mt2/include/trace/events/erofs.h" "$KERNEL_DIR/include/trace/events/"
+  ok "已复制 include/trace/events/erofs.h"
+fi
+if [ ! -f "$KERNEL_DIR/include/trace/events/erofs.h" ]; then
+  warn "include/trace/events/erofs.h 缺失 -- EROFS 编译会失败"
 fi
 
 log "复制 fs/erofs"
@@ -104,11 +121,40 @@ if [ -f fs/erofs/internal.h ] && grep -q "VAL != EROFS_LOCKED_MAGIC" fs/erofs/in
   ok "已修正 erofs internal.h 的 VAL -> orig_val 笔误"
 fi
 
+# (b2) ★ 4.14 兼容: xarray 在 4.14.186 里不存在
+#      mt6873 (4.14.336) 的 erofs utils.c 用了 xa_lock(),
+#      而 4.14.186 只有 radix_tree_* (4.14 的 radix_tree_root 没有 xarray 那套锁)
+#      -> 换成 radix_tree 的等价加锁
+if [ -f fs/erofs/utils.c ] && grep -q "xa_lock" fs/erofs/utils.c; then
+  # ★ 用 Python 做替换 —— sed 里 & 是"整个匹配"的特殊字符,
+  #   直接写 &sbi->... 会被 sed 当成"插入整个匹配", 结果变成 &&sbi->...
+  python3 - "$PWD/fs/erofs/utils.c" << 'PYEOF' || warn "python 替换失败"
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8", errors="surrogateescape").read()
+before = s
+s = s.replace("xa_lock(&sbi->workstn_tree)", "down_write(&sbi->workstn_tree.lock)")
+s = s.replace("xa_unlock(&sbi->workstn_tree)", "up_write(&sbi->workstn_tree.lock)")
+s = s.replace("#include <linux/xarray.h>\n", "")
+open(p, "w", encoding="utf-8", errors="surrogateescape").write(s)
+print("  replaced:", before != s)
+PYEOF
+  if grep -q "xa_lock\|xa_unlock\|xarray" fs/erofs/utils.c; then
+    warn "utils.c 里还有残留 xarray 引用, 编译可能失败:"
+    grep -n "xa_lock\|xa_unlock\|xarray" fs/erofs/utils.c | sed 's/^/      /' || true
+  else
+    ok "已把 xa_lock/xa_unlock 换成 radix_tree 的 down_write/up_write (4.14 兼容)"
+  fi
+fi
+
 # (c) uapi 头文件必须到位 (EROFS_SUPER_MAGIC_V1 / EROFS_SUPER_OFFSET 等宏在这里)
-#     cone 模式的 sparse-checkout 忽略单个文件, 所以要整个 include/uapi/linux 目录
+#     ★ mt6873 (4.14.336) 的 erofs 把这些宏定义在自己的 erofs_fs.h / internal.h 里,
+#       **不依赖 uapi/linux/erofs_fs.h** —— 实测依赖分析: uapi 依赖数 = 0。
+#       所以这一段只在 uapi 头确实存在时才复制, 不再强制要求。
 for src in "$TMP/mt/include/uapi/linux/erofs_fs.h" \
            "$TMP/mt2/include/uapi/linux/erofs_fs.h" \
-           "$ERDFS_SRC/../../include/uapi/linux/erofs_fs.h"; do
+           "$ERDFS_SRC/../../include/uapi/linux/erofs_fs.h" \
+           "$EROFS_SRC/../../include/uapi/linux/erofs_fs.h"; do
   if [ -f "$src" ]; then
     mkdir -p include/uapi/linux
     cp "$src" include/uapi/linux/
@@ -116,8 +162,11 @@ for src in "$TMP/mt/include/uapi/linux/erofs_fs.h" \
     break
   fi
 done
-if ! grep -q "EROFS_SUPER_MAGIC_V1" include/uapi/linux/erofs_fs.h 2>/dev/null; then
-  warn "erofs_fs.h 缺失或不含 EROFS_SUPER_MAGIC_V1 -- EROFS 编译会失败"
+# 真正的检查: EROFS_SUPER_MAGIC_V1 在 erofs 自己的头里有没有
+if grep -rq "EROFS_SUPER_MAGIC_V1" fs/erofs/ 2>/dev/null; then
+  ok "EROFS_SUPER_MAGIC_V1 已由 fs/erofs 自身提供 (无需 uapi 头)"
+else
+  warn "找不到 EROFS_SUPER_MAGIC_V1 -- EROFS 编译会失败"
 fi
 
 # fs/Makefile 注册
