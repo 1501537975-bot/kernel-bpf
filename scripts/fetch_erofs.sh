@@ -179,6 +179,34 @@ else
   warn "找不到 EROFS_SUPER_MAGIC_V1 -- EROFS 编译会失败"
 fi
 
+# (b3) ★★ 补齐 erofs 头里缺失的宏 (第 33 轮编译失败的原因)
+#
+#      mt6873-dev (4.14.336) 自带的 fs/erofs 源码是**不完整**的:
+#        fs/erofs/erofs_fs.h 把上游的 `#include <uapi/linux/erofs_fs.h>` 删掉了,
+#        结果 EROFS_SUPER_MAGIC_V1 等常量无定义 ->
+#        super.c:279:40: error: 'EROFS_SUPER_MAGIC_V1' undeclared
+#
+#      修法: 从预置的上游 uapi 头里提取缺失的宏, 插进 fs/erofs/erofs_fs.h
+UAPI_HDR="$PATCH_DIR/erofs/include/uapi/linux/erofs_fs.h"
+if [ -f "$UAPI_HDR" ] && [ -f fs/erofs/erofs_fs.h ]; then
+  python3 "$SCRIPTS_DIR/patch_erofs_hdr.py" "$UAPI_HDR" "$PWD/fs/erofs/erofs_fs.h" \
+    && ok "已补齐 erofs 头缺失的宏"
+else
+  warn "找不到 uapi erofs_fs.h ($UAPI_HDR) —— EROFS_SUPER_MAGIC_V1 可能仍无定义"
+fi
+
+# (b4) ★ 硬校验: 源码里用到的 EROFS_ 标识符必须都有定义
+#      否则又是一次 20 分钟编译后才炸 (第 33 轮就是这么挂的)
+#      校验器会同时认 #define 和 enum 成员 (EROFS_FT_* / EROFS_INODE_FLAT_* 是 enum)
+if [ -f "$SCRIPTS_DIR/check_erofs_macros.py" ]; then
+  if ! python3 "$SCRIPTS_DIR/check_erofs_macros.py" "$PWD/fs/erofs"; then
+    echo "[erofs] erofs 标识符不完整 —— 编译必然失败, 中止" >&2
+    exit 1
+  fi
+else
+  warn "找不到 check_erofs_macros.py, 跳过标识符完整性检查"
+fi
+
 # fs/Makefile 注册
 if ! grep -q "erofs" fs/Makefile 2>/dev/null; then
   log "注册 fs/Makefile"
