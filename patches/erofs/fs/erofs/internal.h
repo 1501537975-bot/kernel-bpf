@@ -493,7 +493,8 @@ static inline int z_erofs_load_lz4_config(struct super_block *sb,
  *     fs/erofs/zdata.o: undefined reference to `detach_page_private'
  * 这里给出与主线语义一致的实现 (4.14 的 set_page_private/page_private 已存在)。
  */
-#ifndef attach_page_private
+#ifndef EROFS_COMPAT_PAGE_PRIVATE
+#define EROFS_COMPAT_PAGE_PRIVATE
 static inline void attach_page_private(struct page *page, void *data)
 {
 	get_page(page);
