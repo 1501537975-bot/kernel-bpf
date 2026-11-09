@@ -160,8 +160,25 @@ static inline void erofs_workgroup_unfreeze(struct erofs_workgroup *grp,
 
 static inline int erofs_wait_on_workgroup_freezed(struct erofs_workgroup *grp)
 {
-	return atomic_cond_read_relaxed(&grp->refcount,
-					VAL != EROFS_LOCKED_MAGIC);
+	/*
+	 * 原代码:
+	 *     return atomic_cond_read_relaxed(&grp->refcount,
+	 *                                     VAL != EROFS_LOCKED_MAGIC);
+	 * VAL 是 4.19+ smp_cond_load_acquire() 宏内部声明的局部变量, 4.14 的
+	 * 同名宏用的是别的名字, 展开后 VAL 未定义:
+	 *     internal.h:164: error: 'VAL' undeclared (first use in this function)
+	 * 之前 build 脚本里 sed 成 orig_val 只是换了个未定义的名字, 同样不过。
+	 * 下面手写等价轮询, 不再依赖那个宏的内部变量。
+	 */
+	int v;
+
+	for (;;) {
+		v = atomic_read(&grp->refcount);
+		if (v != EROFS_LOCKED_MAGIC)
+			break;
+		cpu_relax();
+	}
+	return v;
 }
 #else
 static inline bool erofs_workgroup_try_to_freeze(struct erofs_workgroup *grp,
