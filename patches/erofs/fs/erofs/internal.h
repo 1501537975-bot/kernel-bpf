@@ -484,3 +484,32 @@ static inline int z_erofs_load_lz4_config(struct super_block *sb,
 #endif
 
 #endif	/* __EROFS_INTERNAL_H */
+
+/*
+ * ---- 4.14 兼容垫片 (2026-11-10) ----
+ * attach_page_private()/detach_page_private() 是 5.9 才引入的页私有数据助手,
+ * 4.14 没有 -> CI #38 在链接期报:
+ *     fs/erofs/zdata.o: undefined reference to `attach_page_private'
+ *     fs/erofs/zdata.o: undefined reference to `detach_page_private'
+ * 这里给出与主线语义一致的实现 (4.14 的 set_page_private/page_private 已存在)。
+ */
+#ifndef attach_page_private
+static inline void attach_page_private(struct page *page, void *data)
+{
+	get_page(page);
+	set_page_private(page, (unsigned long)data);
+	SetPagePrivate(page);
+}
+
+static inline void *detach_page_private(struct page *page)
+{
+	void *data = (void *)page_private(page);
+
+	if (!PagePrivate(page))
+		return NULL;
+	ClearPagePrivate(page);
+	set_page_private(page, 0);
+	put_page(page);
+	return data;
+}
+#endif
