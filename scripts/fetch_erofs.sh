@@ -28,6 +28,8 @@ ok()  { echo -e "\033[1;32m[ ok ]\033[0m $*"; }
 warn(){ echo -e "\033[1;33m[warn]\033[0m $*"; }
 
 cd "${KERNEL_DIR:-kernel}"
+# 之后所有路径都用**相对路径** —— 脚本已经 cd 进内核树了,
+# 用 $KERNEL_DIR 反而会因为它未定义 (独立运行时) 触发 set -u 退出。
 # 这两个路径由 build.sh export 传入, 但独立跑时可能没设 -> 给默认值
 PATCH_DIR="${PATCH_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../patches" 2>/dev/null && pwd)}"
 EROFS_TREE="${EROFS_TREE:-$PATCH_DIR/erofs}"
@@ -91,20 +93,21 @@ fi
 # (a) include/trace/events/erofs.h —— fs/erofs/super.c 需要它
 #     (fs/erofs/super.c:15: fatal error: trace/events/erofs.h: No such file)
 #     ★ 预置源里已经带了 include/trace/events/erofs.h, 优先用它
+#     ★ TMP 可能未定义 (走预置分支时没克隆) -> 用 ${TMP:+...} 防 set -u 退出
 if [ -f "$PATCH_DIR/erofs/include/trace/events/erofs.h" ]; then
-  mkdir -p "$KERNEL_DIR/include/trace/events"
-  cp "$PATCH_DIR/erofs/include/trace/events/erofs.h" "$KERNEL_DIR/include/trace/events/"
+  mkdir -p "include/trace/events"
+  cp "$PATCH_DIR/erofs/include/trace/events/erofs.h" "include/trace/events/"
   ok "已复制 include/trace/events/erofs.h (预置)"
-elif [ -f "$TMP/mt/include/trace/events/erofs.h" ]; then
-  mkdir -p "$KERNEL_DIR/include/trace/events"
-  cp "$TMP/mt/include/trace/events/erofs.h" "$KERNEL_DIR/include/trace/events/"
+elif [ -n "${TMP:-}" ] && [ -f "$TMP/mt/include/trace/events/erofs.h" ]; then
+  mkdir -p "include/trace/events"
+  cp "$TMP/mt/include/trace/events/erofs.h" "include/trace/events/"
   ok "已复制 include/trace/events/erofs.h"
-elif [ -f "$TMP/mt2/include/trace/events/erofs.h" ]; then
-  mkdir -p "$KERNEL_DIR/include/trace/events"
-  cp "$TMP/mt2/include/trace/events/erofs.h" "$KERNEL_DIR/include/trace/events/"
+elif [ -n "${TMP:-}" ] && [ -f "$TMP/mt2/include/trace/events/erofs.h" ]; then
+  mkdir -p "include/trace/events"
+  cp "$TMP/mt2/include/trace/events/erofs.h" "include/trace/events/"
   ok "已复制 include/trace/events/erofs.h"
 fi
-if [ ! -f "$KERNEL_DIR/include/trace/events/erofs.h" ]; then
+if [ ! -f "include/trace/events/erofs.h" ]; then
   warn "include/trace/events/erofs.h 缺失 -- EROFS 编译会失败"
 fi
 
@@ -151,10 +154,17 @@ fi
 #     ★ mt6873 (4.14.336) 的 erofs 把这些宏定义在自己的 erofs_fs.h / internal.h 里,
 #       **不依赖 uapi/linux/erofs_fs.h** —— 实测依赖分析: uapi 依赖数 = 0。
 #       所以这一段只在 uapi 头确实存在时才复制, 不再强制要求。
-for src in "$TMP/mt/include/uapi/linux/erofs_fs.h" \
-           "$TMP/mt2/include/uapi/linux/erofs_fs.h" \
-           "$ERDFS_SRC/../../include/uapi/linux/erofs_fs.h" \
-           "$EROFS_SRC/../../include/uapi/linux/erofs_fs.h"; do
+#
+# ★★ TMP 可能未定义! 走"仓库预置"分支时根本不会克隆, TMP 永远没被赋值,
+#    而本脚本开了 set -u -> 引用未定义变量会**直接退出**, 导致后面的
+#    fs/Makefile / fs/Kconfig 注册全部没做 -> CONFIG_EROFS_FS 被 syncconfig 丢掉。
+#    (第 32 轮就是这么挂的: "line 154: TMP: unbound variable")
+TMP="${TMP:-}"
+
+for src in "${TMP:+$TMP/mt/include/uapi/linux/erofs_fs.h}" \
+           "${TMP:+$TMP/mt2/include/uapi/linux/erofs_fs.h}" \
+           "$PATCH_DIR/erofs/include/uapi/linux/erofs_fs.h"; do
+  [ -n "$src" ] || continue
   if [ -f "$src" ]; then
     mkdir -p include/uapi/linux
     cp "$src" include/uapi/linux/
@@ -195,5 +205,21 @@ if ! grep -q "EROFS_FS" fs/Kconfig 2>/dev/null; then
 fi
 
 ok "erofs 移植完成"
-log "下一步: build.sh 会开启 CONFIG_EROFS_FS / CONFIG_EROFS_FS_XATTR / CONFIG_EROFS_FS_ZIP"
-log "注意: 若 OS4 分区为压缩格式，需同时确认 CONFIG_LZ4_DECOMPRESS=y 与 CONFIG_CRYPTO_LZ4=y"
+
+# ── 硬校验 (第 32 轮教训) ──────────────────────────────
+# ★ 第 32 轮: fetch_erofs.sh 在中途因 set -u (TMP 未定义) 退出,
+#   导致下面的 fs/Makefile / fs/Kconfig 注册**根本没执行**,
+#   而 build.sh 只看到 "EROFS 移植未成功 -> 继续构建" 的警告就放行了,
+#   结果 CONFIG_EROFS_FS 被 syncconfig 丢掉 -> 内核里没有 EROFS 驱动。
+#   → 这里必须硬校验, 不通过就 exit 1, 让 build.sh 明确失败。
+if ! grep -q "obj-\$(CONFIG_EROFS_FS) += erofs" fs/Makefile 2>/dev/null; then
+  die "fs/Makefile 没有注册 erofs —— CONFIG_EROFS_FS 会被 syncconfig 丢掉"
+fi
+if ! grep -q 'source "fs/erofs/Kconfig"' fs/Kconfig 2>/dev/null; then
+  die "fs/Kconfig 没有注册 fs/erofs/Kconfig —— CONFIG_EROFS_FS 会被 syncconfig 丢掉"
+fi
+ok "fs/Makefile 与 fs/Kconfig 注册已确认 ✓"
+
+log "下一步: build.sh 会开启 CONFIG_EROFS_FS / CONFIG_EROFS_FS_XATTR"
+log "注意: 实测 K40G A16/A17 移植包的镜像**无压缩** (feature_compat=0x07),"
+log "      所以不需要 CONFIG_EROFS_FS_ZIP"
