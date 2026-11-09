@@ -390,14 +390,22 @@ log "    设置内核选项..."
 # ③ EROFS: ★必需 (2026-11-09 实测)
 #    K40G A16/A17 移植包的 system/product/system_ext/vendor **全部是 EROFS 格式**
 #    (magic 0xE0F5E1E2), 原厂内核没这个驱动 -> 挂载 system 直接失败 -> 卡开机。
-#    ★ 但实测这些镜像 **没有压缩** (feature_compat=0x07, 无 COMPRESS 位),
-#      所以 **不需要 CONFIG_EROFS_FS_ZIP** —— 省掉 LZ4 解压那一整套依赖, 编译风险大降。
+#    ★ 2026-11-10 修正: 之前写"镜像没有压缩"是**看错了字段**。
+#      feature_compat(0x07) 只表示 superblock 特性, 不代表没压缩;
+#      真正要看的是 feature_incompat 与 available_compr_algs。实测:
+#        - K40G (HyperOS4)      : feat_incompat=0x3  algs=0x1(LZ4)
+#        - ColorOS 17 (PLC110)  : feat_incompat=0x3  algs=0x1(LZ4)
+#      也就是说 **镜像是 LZ4 压缩的**, 必须 --enable CONFIG_EROFS_FS_ZIP,
+#      否则 VFS 认了 superblock, 一读文件就报 unsupported compression
+#      -> 卡第一屏 / 反复重启。ZIP 打开后 Makefile 会自动带上
+#      decompressor.o zmap.o zdata.o 三个目标。
 "$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" \
   --enable CONFIG_EROFS_FS \
   --enable CONFIG_EROFS_FS_XATTR \
-  --disable CONFIG_EROFS_FS_ZIP \
+  --enable CONFIG_EROFS_FS_ZIP \
   --enable CONFIG_LZ4 \
   --enable CONFIG_LZ4_DECOMPRESS \
+  --enable CONFIG_LZ4HC \
   --enable CONFIG_CRYPTO \
   --enable CONFIG_CRYPTO_LZ4
 
