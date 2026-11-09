@@ -61,6 +61,12 @@ jobs:
           echo ""
           echo "=== set -e 隐患扫描 ==="
           python3 scripts/scan_sete.py scripts/build.sh || true
+          echo ""
+          echo "=== 未定义变量扫描 (set -u 隐患) ==="
+          # ★ 第 32 轮教训: fetch_erofs.sh 引用了未定义的 $TMP,
+          #   在 set -u 下直接退出 -> fs/Makefile/fs/Kconfig 注册没做
+          #   -> CONFIG_EROFS_FS 被 syncconfig 丢掉 -> 白跑一轮编译
+          python3 scripts/check_undef_vars.py scripts/fetch_erofs.sh scripts/build.sh || true
 
       - name: Verify kernel source checkout
         run: |
