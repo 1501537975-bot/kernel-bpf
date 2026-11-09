@@ -27,6 +27,13 @@ log() { echo -e "\033[1;36m[erofs]\033[0m $*"; }
 ok()  { echo -e "\033[1;32m[ ok ]\033[0m $*"; }
 warn(){ echo -e "\033[1;33m[warn]\033[0m $*"; }
 
+# ★ SCRIPTS_DIR 必须自己定义 —— build.sh 会 export 它, 但独立运行时没有;
+#   在 set -u 下引用未定义变量会**直接退出**(第 34 轮之前的隐患)。
+#   注意: 要在 cd 之前取绝对路径 —— cd 之后 BASH_SOURCE 变成相对路径。
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPTS_DIR="${SCRIPTS_DIR:-$_SCRIPT_DIR}"
+export SCRIPTS_DIR
+
 cd "${KERNEL_DIR:-kernel}"
 # 之后所有路径都用**相对路径** —— 脚本已经 cd 进内核树了,
 # 用 $KERNEL_DIR 反而会因为它未定义 (独立运行时) 触发 set -u 退出。
