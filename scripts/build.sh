@@ -149,6 +149,27 @@ export HOSTCC=gcc
 export HOSTCXX=g++
 export CLANG_TRIPLE=aarch64-linux-gnu-
 
+# ── ccache (编译缓存) ─────────────────────────────────────
+# ★ 完整编译一轮要 80 分钟, ccache 命中后只要 10 分钟上下。
+#   第 31 轮开始 CI 会缓存 ~/.cache/ccache, 后续改一行代码重编极快。
+if command -v ccache >/dev/null 2>&1; then
+  export CCACHE_DIR="${CCACHE_DIR:-$HOME/.cache/ccache}"
+  export CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-5G}"
+  mkdir -p "$CCACHE_DIR"
+  # ccache 需要包在编译器外面: aarch64-linux-gnu-gcc -> ccache aarch64-linux-gnu-gcc
+  case "$CC_CMD" in
+    *clang*)
+      export CC="ccache $CC_CMD"
+      ;;
+    *)
+      export CC="ccache ${CROSS}gcc"
+      ;;
+  esac
+  ok "启用 ccache (缓存目录 $CCACHE_DIR, 上限 $CCACHE_MAXSIZE)"
+else
+  warn "未安装 ccache -> 本轮会完整编译 (约 80 分钟)"
+fi
+
 # 用 clang 时才启用 LLVM_IAS (集成汇编器), GCC 下必须关
 if echo "$CC_CMD" | grep -q clang; then
   export LLVM_IAS=1

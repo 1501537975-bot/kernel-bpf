@@ -112,11 +112,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            kernel/.config
-            out
-          key: cezanne-bpf-${{ github.run_id }}
+            ~/.cache/ccache
+          # ★ 用 ccache 而不是缓存 out/ ——
+          #   build.sh 开头有 `make mrproper`, 缓存 out/ 会被立刻清掉, 毫无意义。
+          #   ccache 缓存的是 .o 文件的中间结果, 命中后重编能快 5~10 倍。
+          key: ccache-${{ github.sha }}
           restore-keys: |
-            cezanne-bpf-
+            ccache-
 
       - name: Prepare EROFS source (pre-fetch, avoid network flakiness)
         run: |
@@ -197,6 +199,11 @@ jobs:
 
       - name: Verify outputs
         run: |
+          # ★ 第 30 轮教训: build.sh 的产物全在 buildrepo/ 下 (它会 cd 回去),
+          #   而这一步默认在仓库根目录 —— 直接 cat kernel-release.txt 会报
+          #   "No such file or directory" 并且**让整个 job 失败**,
+          #   导致后面的 Upload artifacts 被跳过, 内核包根本没上传出来!
+          cd buildrepo
           echo "=== kernel-release ==="
           cat kernel-release.txt
           echo ""
@@ -222,6 +229,12 @@ jobs:
           echo ""
           echo "=== 产物 ==="
           ls -la artifacts/ 2>/dev/null || ls -la *.zip 2>/dev/null || echo "无 zip"
+          # 产物必须存在, 否则明确失败 (不要让 upload 步骤空跑)
+          if [ -z "$(ls artifacts/*.zip 2>/dev/null)" ]; then
+            echo "::error title=没有产出内核包::artifacts/ 下没有 zip"
+            exit 1
+          fi
+          echo "::notice::内核包已产出 ✓"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
