@@ -347,8 +347,10 @@ if [ -f "$KERNEL_DIR/Makefile" ]; then
 fi
 # scripts/Kbuild.include 的 cc-disable-warning 用 -Werror 探测支持性,
 # 那里保持原样 (只是探测, 不影响编译), 但把 -Werror 探测改为不致命
+#
+# ★ grep 无匹配返回 1, 在 set -e 下会杀掉整个脚本 —— 必须 || true
 if [ -f "$KERNEL_DIR/scripts/Kbuild.include" ]; then
-  grep -n "cc-disable-warning" "$KERNEL_DIR/scripts/Kbuild.include" | head -2 | sed 's/^/      /'
+  grep -n "cc-disable-warning" "$KERNEL_DIR/scripts/Kbuild.include" 2>/dev/null | head -2 | sed 's/^/      /' || true
 fi
 
 # ── 统一设置 config (必须在此处: defconfig 之后 .config 才存在) ──
@@ -589,13 +591,24 @@ else
 fi
 
 # 同时校验 vermagic 里必须的 modversions
+#
+# ★ 用 if 而不是 A && B || C:
+#   `grep -q ... && ok ... || warn ...` 这种写法在 ok 失败时会被 || 分支接管,
+#   语义脆弱; 而且 grep 无匹配时返回 1, 若不在 if 条件里会直接杀掉脚本。
 if [ -f "$OUT_ABS/include/config/auto.conf" ]; then
-  grep -q "^CONFIG_MODVERSIONS=y" "$OUT_ABS/include/config/auto.conf" && \
-    ok "CONFIG_MODVERSIONS=y (符号 CRC 校验保留)" || \
+  if grep -q "^CONFIG_MODVERSIONS=y" "$OUT_ABS/include/config/auto.conf"; then
+    ok "CONFIG_MODVERSIONS=y (符号 CRC 校验保留)"
+  else
     warn "CONFIG_MODVERSIONS 未开 —— 原厂 .ko 依赖符号 CRC"
+  fi
 fi
 
 # 提取关键配置留档
+#
+# ★ 陷阱 (第 29 轮踩到): 本脚本开了 `set -euo pipefail`,
+#   而 `grep` 找不到匹配时返回 1 —— 管道整体失败, 脚本会**静默退出**。
+#   第 29 轮就是这样在版本串校验通过之后突然挂掉的 (日志里连报错都没有,
+#   BUILD-INFO.txt 也没生成)。所以这里所有 grep 管道都必须兜住。
 {
   echo "# 编译信息"
   echo "kernel-release: $REL"
@@ -611,13 +624,16 @@ fi
 
 for opt in CONFIG_EROFS_FS CONFIG_EROFS_FS_XATTR CONFIG_BPF_SYSCALL CONFIG_DEBUG_INFO_BTF \
            CONFIG_CGROUP_BPF CONFIG_CGROUP_FREEZER CONFIG_FHANDLE CONFIG_INDIRECT_FD \
-           CONFIG_MODULES CONFIG_MODVERSIONS CONFIG_LOCALVERSION; do
-  val=$(grep -E "^${opt}=" "$OUT_ABS/.config" 2>/dev/null | head -1 | cut -d= -f2)
-  [ -z "$val" ] && val="n"
+           CONFIG_MODULES CONFIG_MODVERSIONS CONFIG_LOCALVERSION CONFIG_LOCALVERSION_AUTO; do
+  # grep 无匹配返回 1, 必须 || true 兜住, 否则 set -e 会杀掉脚本
+  val="$(grep -E "^${opt}=" "$OUT_ABS/.config" 2>/dev/null | head -1 | cut -d= -f2 || true)"
+  # ★ 注意: 不能写成 [ -z "$val" ] && val="n"
+  #   —— 当 $val 非空时 test 返回 1, 在 set -e 下**整行失败直接退出脚本**!
+  if [ -z "$val" ]; then val="n"; fi
   echo "$opt=$val" | tee -a BUILD-INFO.txt
 done
 
-grep -E "^CONFIG_LOCALVERSION" "$OUT_ABS/.config" | tee -a BUILD-INFO.txt
+grep -E "^CONFIG_LOCALVERSION" "$OUT_ABS/.config" 2>/dev/null | tee -a BUILD-INFO.txt || true
 echo "EROFS 生效: $(grep -c '^CONFIG_EROFS_FS=y' "$OUT_ABS/.config" 2>/dev/null || echo 0)" | tee -a BUILD-INFO.txt
 
 cp "$OUT_ABS/.config" config.txt

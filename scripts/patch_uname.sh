@@ -60,4 +60,4 @@ else
 fi
 
 log "注入片段:"
-grep -n -A8 "FAKE_UNAME_FOR_BPF" "$SYSC" | head -14 | sed 's/^/      /'
+grep -n -A8 "FAKE_UNAME_FOR_BPF" "$SYSC" 2>/dev/null | head -14 | sed 's/^/      /' || true

@@ -48,10 +48,10 @@ OUT_ABS="$OUT"
 IMG_GZ=""
 IMG_DTB=""
 for cand in "$OUT_ABS/arch/arm64/boot/Image.gz" "$OUT_ABS/Image.gz"; do
-  [ -f "$cand" ] && { IMG_GZ="$cand"; break; }
+  if [ -f "$cand" ]; then IMG_GZ="$cand"; break; fi
 done
 for cand in "$OUT_ABS/arch/arm64/boot/Image.gz-dtb" "$OUT_ABS/Image.gz-dtb"; do
-  [ -f "$cand" ] && { IMG_DTB="$cand"; break; }
+  if [ -f "$cand" ]; then IMG_DTB="$cand"; break; fi
 done
 
 if [ -z "$IMG_GZ" ] && [ -z "$IMG_DTB" ]; then
@@ -59,8 +59,8 @@ if [ -z "$IMG_GZ" ] && [ -z "$IMG_DTB" ]; then
   warn "当前 $OUT_ABS 下内容:"; ls -la "$OUT_ABS" 2>/dev/null | head -20 | sed 's/^/      /'
   exit 1
 fi
-[ -n "$IMG_GZ" ]  && log "Image.gz     : $IMG_GZ"
-[ -n "$IMG_DTB" ] && log "Image.gz-dtb : $IMG_DTB"
+if [ -n "$IMG_GZ" ];  then log "Image.gz     : $IMG_GZ"; fi
+if [ -n "$IMG_DTB" ]; then log "Image.gz-dtb : $IMG_DTB"; fi
 
 # ── 准备打包目录 ──
 rm -rf "$BUILD_DIR"

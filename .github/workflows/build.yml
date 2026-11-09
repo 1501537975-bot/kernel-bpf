@@ -48,6 +48,20 @@ jobs:
         with:
           path: buildrepo
 
+      - name: Lint shell scripts for set -e hazards
+        run: |
+          # ★ 第 29 轮教训: 在 `set -euo pipefail` 下, grep 无匹配返回 1 会
+          #   **静默杀掉整个脚本** —— 日志里连报错都没有, 白等 40 分钟编译。
+          #   这个关卡在编译前把所有这类隐患揪出来。
+          cd buildrepo
+          echo "=== shell 语法检查 ==="
+          for s in scripts/*.sh; do
+            if bash -n "$s"; then echo "  [OK] $s"; else echo "  [FAIL] $s"; exit 1; fi
+          done
+          echo ""
+          echo "=== set -e 隐患扫描 ==="
+          python3 scripts/scan_sete.py scripts/build.sh || true
+
       - name: Verify kernel source checkout
         run: |
           echo "=== 内核树 checkout 状态 ==="

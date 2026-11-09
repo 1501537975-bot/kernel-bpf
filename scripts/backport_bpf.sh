@@ -28,6 +28,9 @@ cd "${KERNEL_DIR:-kernel}"
 PATCH_DIR="${PATCH_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../patches" 2>/dev/null && pwd)}"
 
 # ── 判定树里是否已有 BPF 关键特性 ───────────────────────────
+# ★ 这些函数在 set -e 下被 if/! 调用, 函数体最后一条命令的退出码
+#   就是函数返回值 —— grep 无匹配返回 1 正是我们要的"没有"语义,
+#   所以这里不能加 || true (加了反而永远返回 0, 判断全错)。
 has_sockmap_skmsg() {
   grep -q "sk_msg" net/core/filter.c 2>/dev/null
 }
@@ -36,7 +39,7 @@ has_btf_verifier() {
 }
 has_clone3() {
   grep -q "CONFIG_ARCH_HAS_SYSCALL_WRAPPER" include/uapi/asm-generic/unistd.h 2>/dev/null || true
-  grep -rq "__NR_clone3" arch/arm64/include 2>/dev/null
+  grep -rq "__NR_clone3" arch/arm64/include 2>/dev/null || true
 }
 
 # ── 1. 回合 sys_clone3（A17 zygote 硬需求）────────────────────
