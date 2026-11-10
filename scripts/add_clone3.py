@@ -148,7 +148,25 @@ def main():
         print("[ok] sched.h: 注入 struct clone_args")
     write(rel, s)
 
-    # 3) SYSCALL_DEFINE2(clone3)
+    # 3) include/linux/syscalls.h 声明
+    # 4.14 的 sys_call_table 是静态数组 [nr] = sym, 编译 sys.c 时
+    # 必须看到 sys_clone3 的声明, 否则 "undeclared here"。
+    rel = "include/linux/syscalls.h"
+    s = read(rel)
+    if "sys_clone3" in s:
+        print("[--] sys_clone3 声明已存在")
+    else:
+        decl = ("\nstruct clone_args;\n"
+                "asmlinkage long sys_clone3(struct clone_args __user *uargs,\n"
+                "\t\t\t       size_t size);\n")
+        idx = s.rfind("#endif")
+        if idx < 0:
+            raise SystemExit("[FAIL] syscalls.h 找不到 #endif")
+        s = s[:idx] + decl + "\n" + s[idx:]
+        write(rel, s)
+        print("[ok] syscalls.h: 声明 sys_clone3")
+
+    # 4) SYSCALL_DEFINE2(clone3)
     rel = "kernel/fork.c"
     s = read(rel)
     if "SYSCALL_DEFINE2(clone3" in s:
