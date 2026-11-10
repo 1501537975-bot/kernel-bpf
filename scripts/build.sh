@@ -259,6 +259,27 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────
+# 3.5 LZ4 解压器修复（EROFS big pcluster 的硬依赖）
+#   4.14 自带的 lib/lz4 是 pre-LZ4-1.8.2 移植版，其
+#   LZ4_decompress_safe_partial() 在 partialDecoding 下误返回 -1，
+#   导致 erofs 的 z_erofs_lz4_decompress 判定 ret != outputsize：
+#       erofs: (device dm-0): z_erofs_lz4_decompress: failed to decompress -1 ...
+#   症状：erofs 能 mount，小文件能读，framework.jar / services.jar 等
+#         大文件 dd/cat 报 I/O error（big pcluster 的 partial 请求）。
+#   ★ 修复与 erofs 无关，是通用 lib 缺陷 -> 只要开了 erofs 就必须打。
+#   ★ 这一步必须**独立于**上面 "erofs 已存在，跳过" 的分支，
+#     否则第二次构建走 early-exit 时 LZ4 修复会被跳过。
+# ─────────────────────────────────────────────────────────────
+if [ "$ENABLE_EROFS" = "yes" ]; then
+  log "[3.5/7] 修复 lib/lz4（EROFS big pcluster 解压）"
+  if bash "$SCRIPTS_DIR/patch_lz4.sh"; then
+    ok "LZ4 解压器已升级"
+  else
+    die "LZ4 修复失败 —— EROFS 大文件仍会 I/O error, 不能带着旧 lz4 出包"
+  fi
+fi
+
+# ─────────────────────────────────────────────────────────────
 # 4. BPF backport（5.10 → 4.14）
 #    这是 Android 16/17 的硬门槛：netbpfload / bpfloader / netd 会检查
 #    内核提供的 BTF 与 BPF 特性，缺了就炸 bpfloader（网络过滤器失效）
