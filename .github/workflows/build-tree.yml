@@ -101,6 +101,12 @@ jobs:
           # ti_cezanne 充电驱动用 float ADC 系数 + kernel_neon, arm64 的
           # -mgeneral-regs-only 会直接拒绝; 改成放大 1e6 的整数定点表。
           python3 ../buildrepo/scripts/fix_float_driver.py . 2>&1 | tail -12
+          # A17 zygote 硬需求: sys_clone3。不能用 patches/clone3 那套
+          # (混入 5.x syscall 且无实现), 这里定点注入最小可用版本。
+          python3 ../buildrepo/scripts/add_clone3.py . 2>&1 | tail -12
+          echo "=== clone3 注入确认 ==="
+          grep -n "__NR_clone3\|__NR_syscalls 436" include/uapi/asm-generic/unistd.h | head -4
+          grep -n "SYSCALL_DEFINE2(clone3" kernel/fork.c | head -2
           echo "=== 修复后声明 ==="
           grep -n "ksm_flock\|blk_crypto_flock" \
             include/linux/keyslot-manager.h block/keyslot-manager.c \
