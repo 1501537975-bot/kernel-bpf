@@ -5,7 +5,7 @@ erofs:          yes
 bpf:            no
 uname_fake:     yes
 ksu:            no
-date:           2026-11-10T20:59:29Z
+date:           2026-11-10T21:35:58Z
 
 == 关键 config 项 ==
 CONFIG_EROFS_FS=y
