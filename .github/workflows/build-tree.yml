@@ -87,6 +87,17 @@ jobs:
           echo "=== resulting config ==="
           grep -E '^CONFIG_(KSU|FHANDLE|EROFS_FS|BPF_SYSCALL|CGROUP_BPF|CROSS_COMPILE)' "$D" || true
 
+      - name: Fix legacy extern-inline (GCC 5+ / C99)
+        run: |
+          # 4.14 + GCC 11 经典冲突: keyslot-manager.h 的
+          # "inline void ksm_flock(...)" 会让 blk-crypto.c 报
+          # "inlining failed ... function body not available"。
+          # 复用本仓库 scripts/fix_extern_inline.py 定点删关键字。
+          cd kernel
+          python3 ../buildrepo/scripts/fix_extern_inline.py . 2>&1 | tail -20
+          echo "=== 修复后声明 ==="
+          grep -n "ksm_flock" include/linux/keyslot-manager.h block/keyslot-manager.c | head -6
+
       - name: Build kernel
         run: |
           set -o pipefail
