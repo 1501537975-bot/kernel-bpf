@@ -38,8 +38,11 @@ has_btf_verifier() {
   grep -q "bpf_prog_attach_btf" kernel/bpf/verifier.c 2>/dev/null
 }
 has_clone3() {
-  grep -q "CONFIG_ARCH_HAS_SYSCALL_WRAPPER" include/uapi/asm-generic/unistd.h 2>/dev/null || true
-  grep -rq "__NR_clone3" arch/arm64/include 2>/dev/null || true
+  # ★ 2026-11-10 修复: 原实现最后一行是 `grep ... || true`,
+  #   函数永远返回 0 -> 每次都误判 "sys_clone3 已存在",
+  #   导致 A17 zygote 需要的 clone3 补丁从未被应用。
+  #   只保留一条 grep, 让它在 set -e + if 条件下正常返回 1 表示"没有"。
+  grep -rq "__NR_clone3" arch/arm64/include 2>/dev/null
 }
 
 # ── 1. 回合 sys_clone3（A17 zygote 硬需求）────────────────────
@@ -129,6 +132,20 @@ log "BTF 配置稍后由 build.sh 统一设置 (当前阶段 .config 尚未生�
 if ! command -v pahole >/dev/null 2>&1; then
   warn "未安装 pahole，BTF 将无法生成（4.19+ 内核的 BTF 需要 pahole >= 1.16）"
   warn "安装: sudo apt-get install -y dwarves"
+fi
+
+# ── 3.5 修正 5.10 头文件的 API 差异 (4.14.186 硬需求) ────────
+# mt6768 (4.14.357) 的 patch 集里混入 5.10 API, 直接编译会报:
+#   SHA1_BLOCK_SIZE undeclared / struct net has no member named bpf /
+#   NETNS_BPF_SK_LOOKUP undeclared / negative_advice 参数过多
+# 用定点替换降级回 4.14 等价写法, 不删功能。
+log "修正 5.10 头文件在 4.14 上的 API 差异"
+COMPAT_DIR="${SCRIPTS_DIR:-$(dirname "${BASH_SOURCE[0]}")}"
+if [ -f "$COMPAT_DIR/fix_bpf_compat.py" ]; then
+  python3 "$COMPAT_DIR/fix_bpf_compat.py" "${KERNEL_DIR:-.}" \
+    || warn "兼容修正脚本返回非 0 (编译可能失败)"
+else
+  warn "未找到 fix_bpf_compat.py, 跳过兼容修正"
 fi
 
 ok "BPF 回合阶段完成"

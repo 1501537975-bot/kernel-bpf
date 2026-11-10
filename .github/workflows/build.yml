@@ -7,6 +7,7 @@ on:
   push:
     paths:
       - '.github/workflows/build.yml'
+      - 'scripts/**'
   workflow_dispatch:
     inputs:
       enable_erofs:
