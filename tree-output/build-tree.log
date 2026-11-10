@@ -1,0 +1,1245 @@
+make[1]: Entering directory '/home/runner/work/kernel-bpf/kernel-bpf/kernel/out'
+  GEN     ./Makefile
+scripts/kconfig/conf  --silentoldconfig Kconfig
+drivers/misc/mediatek/nfc/Kconfig:22:warning: ignoring type redefinition of 'MTK_NFC_CLKBUF_ENABLE' from 'boolean' to 'tristate'
+#
+# configuration written to .config
+#
+  CHK     include/config/kernel.release
+  GEN     ./Makefile
+  UPD     include/config/kernel.release
+  CHK     include/generated/uapi/linux/version.h
+  UPD     include/generated/uapi/linux/version.h
+  WRAP    arch/arm64/include/generated/uapi/asm/errno.h
+  WRAP    arch/arm64/include/generated/uapi/asm/ioctl.h
+  WRAP    arch/arm64/include/generated/uapi/asm/ioctls.h
+  WRAP    arch/arm64/include/generated/uapi/asm/ipcbuf.h
+  WRAP    arch/arm64/include/generated/uapi/asm/kvm_para.h
+  WRAP    arch/arm64/include/generated/uapi/asm/mman.h
+  WRAP    arch/arm64/include/generated/uapi/asm/msgbuf.h
+  WRAP    arch/arm64/include/generated/uapi/asm/resource.h
+  WRAP    arch/arm64/include/generated/uapi/asm/poll.h
+  WRAP    arch/arm64/include/generated/uapi/asm/sembuf.h
+  WRAP    arch/arm64/include/generated/uapi/asm/shmbuf.h
+  WRAP    arch/arm64/include/generated/uapi/asm/socket.h
+  WRAP    arch/arm64/include/generated/uapi/asm/sockios.h
+  WRAP    arch/arm64/include/generated/uapi/asm/swab.h
+  WRAP    arch/arm64/include/generated/uapi/asm/termbits.h
+  WRAP    arch/arm64/include/generated/uapi/asm/termios.h
+  WRAP    arch/arm64/include/generated/uapi/asm/types.h
+  CHK     include/generated/utsrelease.h
+  UPD     include/generated/utsrelease.h
+  HOSTCC  scripts/basic/fixdep
+  HOSTCC  scripts/basic/bin2c
+  Using .. as source for kernel
+  WRAP    arch/arm64/include/generated/asm/bugs.h
+  WRAP    arch/arm64/include/generated/asm/clkdev.h
+  WRAP    arch/arm64/include/generated/asm/delay.h
+  WRAP    arch/arm64/include/generated/asm/div64.h
+  WRAP    arch/arm64/include/generated/asm/dma.h
+  WRAP    arch/arm64/include/generated/asm/dma-contiguous.h
+  WRAP    arch/arm64/include/generated/asm/early_ioremap.h
+  WRAP    arch/arm64/include/generated/asm/emergency-restart.h
+  WRAP    arch/arm64/include/generated/asm/hw_irq.h
+  WRAP    arch/arm64/include/generated/asm/irq_regs.h
+  WRAP    arch/arm64/include/generated/asm/kdebug.h
+  WRAP    arch/arm64/include/generated/asm/kmap_types.h
+  WRAP    arch/arm64/include/generated/asm/local.h
+  WRAP    arch/arm64/include/generated/asm/local64.h
+  WRAP    arch/arm64/include/generated/asm/mcs_spinlock.h
+  WRAP    arch/arm64/include/generated/asm/mm-arch-hooks.h
+  WRAP    arch/arm64/include/generated/asm/msi.h
+  WRAP    arch/arm64/include/generated/asm/preempt.h
+  WRAP    arch/arm64/include/generated/asm/rwsem.h
+  WRAP    arch/arm64/include/generated/asm/segment.h
+  WRAP    arch/arm64/include/generated/asm/serial.h
+  WRAP    arch/arm64/include/generated/asm/set_memory.h
+  WRAP    arch/arm64/include/generated/asm/sizes.h
+  WRAP    arch/arm64/include/generated/asm/switch_to.h
+  WRAP    arch/arm64/include/generated/asm/trace_clock.h
+  WRAP    arch/arm64/include/generated/asm/unaligned.h
+  WRAP    arch/arm64/include/generated/asm/user.h
+  WRAP    arch/arm64/include/generated/asm/vga.h
+  WRAP    arch/arm64/include/generated/asm/xor.h
+  HOSTCC  scripts/dtc/dtc.o
+  HOSTCC  scripts/genksyms/genksyms.o
+  HOSTCC  scripts/dtc/flattree.o
+  SHIPPED scripts/genksyms/parse.tab.c
+  SHIPPED scripts/genksyms/lex.lex.c
+  SHIPPED scripts/genksyms/parse.tab.h
+  HOSTCC  scripts/genksyms/parse.tab.o
+  HOSTCC  scripts/dtc/fstree.o
+  HOSTCC  scripts/genksyms/lex.lex.o
+  HOSTCC  scripts/dtc/data.o
+  CC      scripts/mod/empty.o
+  HOSTCC  scripts/mod/mk_elfconfig
+  HOSTCC  scripts/dtc/livetree.o
+  CC      scripts/mod/devicetable-offsets.s
+  MKELF   scripts/mod/elfconfig.h
+  CHK     scripts/mod/devicetable-offsets.h
+  UPD     scripts/mod/devicetable-offsets.h
+  HOSTCC  scripts/mod/sumversion.o
+  HOSTLD  scripts/genksyms/genksyms
+  HOSTCC  scripts/mod/modpost.o
+  HOSTCC  scripts/dtc/treesource.o
+  HOSTCC  scripts/mod/file2alias.o
+  HOSTCC  scripts/dtc/srcpos.o
+  HOSTCC  scripts/dtc/checks.o
+  HOSTCC  scripts/dtc/util.o
+  HOSTLD  scripts/mod/modpost
+  HOSTCC  scripts/selinux/genheaders/genheaders
+  CC      kernel/bounds.s
+  CHK     include/generated/timeconst.h
+  UPD     include/generated/timeconst.h
+  CHK     include/generated/bounds.h
+  UPD     include/generated/bounds.h
+  CC      arch/arm64/kernel/asm-offsets.s
+  SHIPPED scripts/dtc/dtc-lexer.lex.c
+  SHIPPED scripts/dtc/dtc-parser.tab.h
+  SHIPPED scripts/dtc/dtc-parser.tab.c
+  HOSTCC  scripts/dtc/dtc-lexer.lex.o
+  HOSTCC  scripts/selinux/mdp/mdp
+  HOSTCC  scripts/dtc/dtc-parser.tab.o
+  CHK     include/generated/asm-offsets.h
+  UPD     include/generated/asm-offsets.h
+  CALL    ../scripts/checksyscalls.sh
+  HOSTCC  scripts/kallsyms
+  HOSTLD  scripts/dtc/dtc
+  LDS     arch/arm64/kernel/vdso/vdso.lds
+  VDSOC   arch/arm64/kernel/vdso/vgettimeofday.o
+*MTK_GPU_VERSION 2 = valhall
+*MTK_GPU_VERSION 3 = r32p1
+  HOSTCC  scripts/pnmtologo
+  VDSOA   arch/arm64/kernel/vdso/note.o
+  VDSOA   arch/arm64/kernel/vdso/sigreturn.o
+..
+  LD      arch/arm64/kernel/vdso/vdso.so.dbg
+  VDSOSYM include/generated/vdso-offsets.h
+..
+FDVT: Drv use 5.1 folder
+..
+..
+..
+  HOSTCC  scripts/sortextable
+..
+  HOSTCC  scripts/asn1_compiler
+../drivers/misc/mediatek/ccu/src/Makefile:25: CCU_MAKE_FILE_CALLED
+../drivers/misc/mediatek/ccu/src/Makefile:36: CCU_MAKE_FILE_CALLED_2_1
+$CONFIG_MTK_COMBO_CHIP is ["CONSYS_6885"]
+MTK_PLATFORM_ID is [6885]
+WIFI_IP_SET is 1
+../drivers/misc/mediatek/connectivity/bt/mt66xx/connac2/Makefile:6: connac20 bt driver: _MTK_BT_CHIP = MTK_CONSYS_MT6885
+../drivers/misc/mediatek/connectivity/bt/mt66xx/connac2/Makefile:9: connac20 bt driver: CONNAC20_CHIPID = 6885
+$CONFIG_MTK_COMBO_CHIP is ["CONSYS_6885"]
+CONNINFRA_PLATFORM_ID is [mt6885]
+$CONNSYS_PLATFORM is [mt6885]
+../drivers/misc/mediatek/connectivity/conninfra/Makefile:70: conninfra build-in boot.img
+../drivers/misc/mediatek/connectivity/wlan/adaptor/Makefile:47: wmt_chrdev_wifi build-in boot.img
+os option: linux
+$MTK_PLATFORM is [mt6885]
+$WLAN_CHIP_ID is [6885]
+$MTK_COMBO_CHIP is [CONNAC2X2_SOC3_0]
+../drivers/misc/mediatek/connectivity/wlan/core/gen4m/Makefile:429: wlan_6885_axi build-in boot.img
+  LDS     arch/arm64/kernel/vdso32/vdso.lds
+  VDSOC32   arch/arm64/kernel/vdso32/vgettimeofday.o
+  HOSTCC  scripts/extract-cert
+  VDSOA32   arch/arm64/kernel/vdso32/sigreturn.o
+  HOSTCC  arch/arm64/kernel/vdso32/../../../arm/vdso/vdsomunge
+************  drivers/trusty/mtee-kree mk ************
+MTK_GPU_VERSION 1 = mali
+*MTK_GPU_VERSION 2 = valhall
+*MTK_GPU_VERSION 3 = r32p1
+mali MTK evironment, building r32p1 DDK
+mtk-Kbuild CONFIG_MALI_PLATFORM_THIRDPARTY := y
+mtk-Kbuild CONFIG_MALI_PLATFORM_THIRDPARTY_NAME := "mt6885"
+*GPU defined GPU BM QoS 2.0
+mali MTK evironment, building r32p1 DDK
+mtk-Kbuild CONFIG_MALI_PLATFORM_THIRDPARTY := y
+mtk-Kbuild CONFIG_MALI_PLATFORM_THIRDPARTY_NAME := "mt6885"
+*GPU defined GPU BM QoS 2.0
+mali MTK evironment, building r32p1 DDK
+mtk-Kbuild CONFIG_MALI_PLATFORM_THIRDPARTY := y
+mtk-Kbuild CONFIG_MALI_PLATFORM_THIRDPARTY_NAME := "mt6885"
+*GPU defined GPU BM QoS 2.0
+  VDSOL32   arch/arm64/kernel/vdso32/vdso.so.raw
+  MUNGE   arch/arm64/kernel/vdso32/vdso.so.dbg
+  VDSOSYM include/generated/vdso32-offsets.h
+imgsensor drv by common ../common/v1_1/imx682sunny_mipi_raw/ ../common/v1_1/s5k3t2sunny_mipi_raw/ ../common/v1_1/s5k3t2ofilm_mipi_raw/ ../common/v1_1/ov02b1bofilm_mipi_raw/ ../common/v1_1/s5k5e9sunny_mipi_raw/ ../common/v1_1/hi1337sunny_mipi_raw/
+imgsensor drv by platform 
+  CC      init/main.o
+  HOSTCC  usr/gen_init_cpio
+  GEN     usr/initramfs_data.cpio
+  AS      usr/initramfs_data.o
+  CC      arch/arm64/kernel/debug-monitors.o
+  AR      usr/built-in.o
+  AS      arch/arm64/kernel/entry.o
+  CC      arch/arm64/mm/dma-mapping.o
+../drivers/misc/mediatek/sensor/2.0/mtk_nanohub/Makefile:5: "config_mtk_platform:"mt6885""
+  CC      arch/arm64/kernel/irq.o
+"CONFIG_MICROTRUST_TEE_VERSION="300""
+"CONFIG_MICROTRUST_TEE_SUPPORT=y"
+"CONFIG_MICROTRUST_TZ_DRIVER=Y"
+"CONFIG_MICROTRUST_VFS_DRIVER=Y"
+"CONFIG_MICROTRUST_FP_DRIVER=Y"
+"CONFIG_MICROTRUST_DEBUG="
+"CONFIG_MICROTRUST_TEST_DRIVERS="
+  CHK     include/generated/compile.h
+  UPD     include/generated/compile.h
+  CC      init/do_mounts.o
+  CC      arch/arm64/kernel/fpsimd.o
+TCORE_UT_TESTS_SUPPORT = n
+TCORE_PROFILING_SUPPORT = n
+TCORE_PROFILING_AUTO_DUMP = n
+TCORE_MEMORY_LEAK_DETECTION_SUPPORT = n
+  CC      arch/arm64/mm/extable.o
+  AS      arch/arm64/kernel/entry-fpsimd.o
+  CC      arch/arm64/mm/fault.o
+  CC      arch/arm64/kernel/process.o
+  CC      arch/arm64/net/bpf_jit_comp.o
+../arch/arm64/kernel/process.c: In function ‘show_data’:
+../arch/arm64/kernel/process.c:193:24: warning: format ‘%p’ expects argument of type ‘void *’, but argument 3 has type ‘long unsigned int’ [-Wformat=]
+  193 |         printk("\n%s: %pS:\n", name, addr);
+      |                       ~^             ~~~~
+      |                        |             |
+      |                        void *        long unsigned int
+      |                       %ld
+  CC      arch/arm64/mm/init.o
+  CC      init/do_mounts_rd.o
+  CC      arch/arm64/kernel/ptrace.o
+  CC      init/do_mounts_initrd.o
+  AS      arch/arm64/mm/cache.o
+  CC      arch/arm64/mm/copypage.o
+  AR      arch/arm64/net/built-in.o
+  CC      init/noinitramfs.o
+  CC      arch/arm64/crypto/sha2-ce-glue.o
+  CC      arch/arm64/mm/flush.o
+  CC      init/initramfs.o
+  CC      arch/arm64/mm/ioremap.o
+  AS      arch/arm64/crypto/sha2-ce-core.o
+  AS      arch/arm64/crypto/aes-ce-core.o
+  CC      arch/arm64/kernel/setup.o
+  CC      arch/arm64/crypto/aes-ce-glue.o
+  CC      init/calibrate.o
+  CC      arch/arm64/mm/mmap.o
+  CC      arch/arm64/crypto/aes-glue-ce.o
+  CC      arch/arm64/kernel/signal.o
+  CC      init/init_task.o
+  CC      arch/arm64/mm/pgd.o
+  AS      arch/arm64/crypto/aes-ce.o
+  CC      arch/arm64/mm/mmu.o
+  CC      arch/arm64/crypto/sha256-glue.o
+  CC      init/version.o
+  CC      arch/arm64/kernel/sys.o
+  AR      init/mounts.o
+  AR      init/built-in.o
+  CC      arch/arm64/mm/context.o
+  CC      arch/arm64/kernel/stacktrace.o
+  SHIPPED arch/arm64/crypto/sha256-core.S
+  AS      arch/arm64/crypto/aes-cipher-core.o
+  CC      arch/arm64/crypto/aes-cipher-glue.o
+  CC      kernel/fork.o
+  AS      arch/arm64/mm/proc.o
+  CC      arch/arm64/mm/pageattr.o
+  CC      arch/arm64/kernel/time.o
+  AR      arch/arm64/crypto/sha2-ce.o
+  AR      arch/arm64/crypto/aes-ce-cipher.o
+  AR      arch/arm64/crypto/aes-ce-blk.o
+  AS      arch/arm64/crypto/sha256-core.o
+  AR      arch/arm64/crypto/aes-arm64.o
+  AR      arch/arm64/crypto/sha256-arm64.o
+  AR      arch/arm64/crypto/built-in.o
+  AS      arch/arm64/mm/cache-mtk-v8.o
+  CC      certs/system_keyring.o
+  AR      arch/arm64/mm/built-in.o
+  CC      kernel/exec_domain.o
+  CC      arch/arm64/kernel/traps.o
+  EXTRACT_CERTS   
+  AS      certs/system_certificates.o
+  AR      certs/built-in.o
+  CC      mm/filemap.o
+  CC      mm/mempool.o
+  CC      arch/arm64/kernel/io.o
+  CC      arch/arm64/kernel/vdso.o
+  AS      arch/arm64/kernel/hyp-stub.o
+  CC      fs/open.o
+  CC      arch/arm64/kernel/psci.o
+  CC      kernel/panic.o
+  CC      arch/arm64/kernel/cpu_ops.o
+  CC      arch/arm64/kernel/insn.o
+  CC      kernel/cpu.o
+  CC      fs/read_write.o
+  CC      mm/oom_kill.o
+  CC      arch/arm64/kernel/return_address.o
+  CC      arch/arm64/kernel/cpuinfo.o
+  CC      arch/arm64/kernel/cpu_errata.o
+  CC      mm/maccess.o
+  CC      kernel/exit.o
+  CC      arch/arm64/kernel/cpufeature.o
+  CC      fs/file_table.o
+  CC      mm/page_alloc.o
+  CC      fs/super.o
+  CC      arch/arm64/kernel/alternative.o
+  CC      arch/arm64/kernel/cacheinfo.o
+  CC      arch/arm64/kernel/smp.o
+  CC      kernel/softirq.o
+  CC      fs/char_dev.o
+  CC      arch/arm64/kernel/smp_spin_table.o
+  CC      kernel/resource.o
+  CC      arch/arm64/kernel/topology.o
+  CC      fs/stat.o
+  CC      mm/page-writeback.o
+  AS      arch/arm64/kernel/smccc-call.o
+  CC      arch/arm64/kernel/sys32.o
+  CC      kernel/sysctl.o
+  CC      arch/arm64/kernel/signal32.o
+  CC      fs/exec.o
+  CC      arch/arm64/kernel/sys_compat.o
+  AS      arch/arm64/kernel/entry32.o
+  CC      mm/readahead.o
+  AS      arch/arm64/kernel/kuser32.o
+  CC      arch/arm64/kernel/arm64ksyms.o
+  CC      kernel/sysctl_binary.o
+  CC      fs/pipe.o
+  CC      arch/arm64/kernel/module.o
+  CC      kernel/capability.o
+  CC      mm/swap.o
+  CC      arch/arm64/kernel/module-plts.o
+  CC      arch/arm64/kernel/perf_regs.o
+  CC      fs/namei.o
+  CC      arch/arm64/kernel/perf_callchain.o
+  CC      kernel/ptrace.o
+../fs/namei.c: In function ‘vfs_mkobj’:
+../fs/namei.c:3060:32: warning: passing argument 1 of ‘may_create’ from incompatible pointer type [-Wincompatible-pointer-types]
+ 3060 |         int error = may_create(dir, dir, dentry);
+      |                                ^~~
+      |                                |
+      |                                struct inode *
+../fs/namei.c:2968:47: note: expected ‘struct vfsmount *’ but argument is of type ‘struct inode *’
+ 2968 | static inline int may_create(struct vfsmount *mnt, struct inode *dir, struct dentry *child)
+      |                              ~~~~~~~~~~~~~~~~~^~~
+  CC      arch/arm64/kernel/perf_event.o
+  CC      mm/truncate.o
+  CC      arch/arm64/kernel/hw_breakpoint.o
+  CC      kernel/user.o
+  CC      mm/vmscan.o
+  CC      kernel/signal.o
+  AS      arch/arm64/kernel/sleep.o
+  CC      arch/arm64/kernel/suspend.o
+  CC      arch/arm64/kernel/cpuidle.o
+  CC      arch/arm64/kernel/armv8_deprecated.o
+  CC      fs/fcntl.o
+  CC      arch/arm64/kernel/kaslr.o
+  CC      arch/arm64/kernel/ssbd.o
+  CC      arch/arm64/kernel/bootinfo.o
+  CC      fs/ioctl.o
+  CC      arch/arm64/kernel/hwconf_manager.o
+  CC      kernel/sys.o
+  CC      mm/shmem.o
+  CC      arch/arm64/kernel/probes/kprobes.o
+  CC      fs/readdir.o
+  CC      arch/arm64/kernel/probes/decode-insn.o
+  AS      arch/arm64/kernel/probes/kprobes_trampoline.o
+  CC      arch/arm64/kernel/probes/simulate-insn.o
+  CC      fs/select.o
+  CC      arch/arm64/kernel/probes/uprobes.o
+  AR      arch/arm64/kernel/probes/built-in.o
+  CC      kernel/umh.o
+  OBJCOPY arch/arm64/kernel/vdso/vdso.so
+  AS      arch/arm64/kernel/vdso/vdso.o
+  AR      arch/arm64/kernel/vdso/built-in.o
+  OBJCOPY arch/arm64/kernel/vdso32/vdso.so
+  AS      arch/arm64/kernel/vdso32/vdso.o
+  AR      arch/arm64/kernel/vdso32/built-in.o
+  AS      arch/arm64/kernel/head.o
+  LDS     arch/arm64/kernel/vmlinux.lds
+  CC      mm/util.o
+  AR      arch/arm64/kernel/built-in.o
+  AR      ipc/built-in.o
+  CC      security/integrity/iint.o
+  CC      kernel/workqueue.o
+  CC      security/integrity/integrity_audit.o
+  CC      fs/dcache.o
+  AR      security/integrity/integrity.o
+  AR      security/integrity/built-in.o
+  CC      mm/mmzone.o
+  CC      security/keys/gc.o
+  CC      mm/vmstat.o
+  CC      security/keys/key.o
+  CC      security/keys/keyring.o
+  CC      mm/backing-dev.o
+  CC      kernel/pid.o
+  CC      fs/inode.o
+  CC      security/keys/keyctl.o
+  CC      mm/mm_init.o
+  CC      kernel/task_work.o
+  CC      security/keys/permission.o
+  CC      mm/mmu_context.o
+  CC      kernel/extable.o
+  CC      security/keys/process_keys.o
+  CC      mm/percpu.o
+  CC      fs/attr.o
+  CC      kernel/params.o
+  CC      security/keys/request_key.o
+  CC      fs/bad_inode.o
+  CC      kernel/kthread.o
+  CC      fs/file.o
+  CC      security/keys/request_key_auth.o
+  CC      security/keys/user_defined.o
+  CC      mm/slab_common.o
+  CC      kernel/sys_ni.o
+  CC      fs/filesystems.o
+  CC      kernel/nsproxy.o
+  CC      security/keys/compat.o
+  CC      security/keys/proc.o
+  CC      kernel/notifier.o
+  CC      fs/namespace.o
+  CC      security/keys/sysctl.o
+  AR      security/keys/built-in.o
+  CC      kernel/ksysfs.o
+  GEN     security/selinux/flask.h security/selinux/av_permissions.h
+  CC      security/selinux/avc.o
+  CC      mm/compaction.o
+  CC      kernel/cred.o
+  CC      security/selinux/hooks.o
+  CC      kernel/reboot.o
+  CC      fs/seq_file.o
+  CC      mm/vmacache.o
+  CC      kernel/async.o
+  CC      mm/swap_slots.o
+  CC      kernel/range.o
+  CC      fs/xattr.o
+  CC      kernel/smpboot.o
+  CC      mm/interval_tree.o
+  CC      mm/list_lru.o
+  CC      kernel/ucount.o
+  CC      kernel/kmod.o
+  CC      fs/libfs.o
+  CC      security/selinux/selinuxfs.o
+  CC      mm/workingset.o
+  CC      kernel/groups.o
+  CC      mm/debug.o
+  CC      fs/fs-writeback.o
+  CC      security/selinux/netlink.o
+  CC      mm/gup.o
+  CC      kernel/bpf/core.o
+  CC      security/selinux/nlmsgtab.o
+  CC      security/selinux/netif.o
+  CC      mm/highmem.o
+  CC      mm/memory.o
+  CC      security/selinux/netnode.o
+  CC      fs/pnode.o
+  CC      security/selinux/netport.o
+  CC      kernel/bpf/syscall.o
+  CC      fs/splice.o
+  CC      security/selinux/ibpkey.o
+  CC      security/selinux/exports.o
+  CC      fs/sync.o
+  CC      security/selinux/ss/ebitmap.o
+  CC      mm/mincore.o
+  CC      kernel/bpf/verifier.o
+  CC      mm/mlock.o
+  CC      security/selinux/ss/hashtab.o
+  CC      fs/utimes.o
+  CC      security/selinux/ss/symtab.o
+  CC      security/selinux/ss/sidtab.o
+  CC      fs/stack.o
+  CC      fs/fs_struct.o
+  CC      mm/mmap.o
+  CC      security/selinux/ss/avtab.o
+  CC      fs/statfs.o
+  CC      security/selinux/ss/policydb.o
+  CC      fs/fs_pin.o
+  CC      fs/nsfs.o
+  CC      fs/buffer.o
+  CC      mm/mprotect.o
+  CC      mm/mremap.o
+  CC      kernel/bpf/inode.o
+  CC      security/selinux/ss/services.o
+  CC      mm/msync.o
+  CC      mm/page_vma_mapped.o
+  CC      kernel/bpf/helpers.o
+  CC      mm/pagewalk.o
+  CC      kernel/bpf/tnum.o
+  CC      mm/pgtable-generic.o
+  CC      fs/block_dev.o
+  CC      kernel/bpf/hashtab.o
+  CC      security/selinux/ss/conditional.o
+  CC      mm/rmap.o
+  CC      security/selinux/ss/mls.o
+  CC      kernel/bpf/arraymap.o
+  CC      fs/direct-io.o
+  CC      security/selinux/ss/status.o
+  CC      mm/vmalloc.o
+  CC      kernel/bpf/percpu_freelist.o
+  CC      kernel/bpf/bpf_lru_list.o
+  AR      security/selinux/selinux.o
+  AR      security/selinux/built-in.o
+  CC      security/commoncap.o
+  CC      kernel/bpf/lpm_trie.o
+  CC      security/min_addr.o
+  CC      kernel/bpf/map_in_map.o
+  CC      security/security.o
+  CC      fs/mpage.o
+  CC      kernel/bpf/local_storage.o
+  CC      mm/process_vm_access.o
+  CC      mm/init-mm.o
+  CC      kernel/bpf/btf.o
+  CC      mm/nobootmem.o
+  CC      fs/proc_namespace.o
+  CC      mm/fadvise.o
+  CC      fs/configfs/inode.o
+  CC      mm/madvise.o
+  CC      security/lsm_audit.o
+  CC      kernel/bpf/disasm.o
+  CC      fs/configfs/file.o
+  CC      kernel/bpf/devmap.o
+  CC      fs/configfs/dir.o
+  CC      mm/memblock.o
+  AR      security/built-in.o
+  CC      crypto/api.o
+  CC      kernel/bpf/cpumap.o
+  CC      mm/page_io.o
+  CC      fs/configfs/symlink.o
+  CC      kernel/bpf/offload.o
+  CC      crypto/cipher.o
+  CC      fs/configfs/mount.o
+  CC      mm/swap_state.o
+  CC      crypto/compress.o
+  CC      fs/configfs/item.o
+  CC      kernel/bpf/stackmap.o
+  CC      crypto/memneq.o
+  AR      fs/configfs/configfs.o
+  AR      fs/configfs/built-in.o
+  CC      fs/crypto/crypto.o
+  CC      mm/swapfile.o
+  CC      kernel/bpf/cgroup.o
+  CC      crypto/crypto_wq.o
+  CC      fs/crypto/fname.o
+  CC      crypto/algapi.o
+  CC      fs/crypto/hkdf.o
+  AR      kernel/bpf/built-in.o
+  CC      kernel/cgroup/cgroup.o
+  CC      fs/crypto/hooks.o
+  CC      mm/dmapool.o
+  CC      crypto/scatterwalk.o
+  CC      fs/crypto/keyring.o
+  CC      mm/sparse.o
+  CC      crypto/proc.o
+  CC      fs/crypto/keysetup.o
+  CC      crypto/aead.o
+  CC      mm/sparse-vmemmap.o
+  CC      mm/slub.o
+  CC      fs/crypto/keysetup_v1.o
+  CC      crypto/ablkcipher.o
+  CC      fs/crypto/policy.o
+  CC      crypto/blkcipher.o
+  CC      fs/crypto/bio.o
+  CC      kernel/cgroup/namespace.o
+  CC      kernel/cgroup/cgroup-v1.o
+  CC      fs/crypto/inline_crypt.o
+  CC      mm/migrate.o
+  CC      crypto/skcipher.o
+  AR      fs/crypto/fscrypto.o
+  AR      fs/crypto/built-in.o
+  CC      fs/devpts/inode.o
+  CC      kernel/cgroup/freezer.o
+  AR      fs/devpts/devpts.o
+  AR      fs/devpts/built-in.o
+  CC      crypto/seqiv.o
+  CC      kernel/cgroup/legacy_freezer.o
+  CC      mm/page_counter.o
+  CC      fs/erofs/super.o
+  CC      mm/memcontrol.o
+  CC      crypto/echainiv.o
+  CC      kernel/cgroup/cpuset.o
+  CC      crypto/ahash.o
+  CC      fs/erofs/inode.o
+  CC      fs/erofs/data.o
+  CC      crypto/shash.o
+  AR      kernel/cgroup/built-in.o
+  CC      kernel/events/core.o
+  CC      fs/erofs/namei.o
+  CC      fs/erofs/dir.o
+../kernel/events/core.c: In function ‘perf_fill_ns_link_info’:
+../kernel/events/core.c:6902:15: warning: assignment to ‘int’ from ‘void *’ makes integer from pointer without a cast [-Wint-conversion]
+ 6902 |         error = ns_get_path(&ns_path, task, ns_ops);
+      |               ^
+  CC      crypto/akcipher.o
+  CC      fs/erofs/utils.o
+  CC      fs/erofs/pcpubuf.o
+  CC      crypto/kpp.o
+  CC      fs/erofs/xattr.o
+  CC      mm/vmpressure.o
+  ASN.1   crypto/rsapubkey-asn1.c
+  CC      mm/swap_cgroup.o
+  ASN.1   crypto/rsaprivkey-asn1.c
+  CC      crypto/rsa.o
+  CC      fs/erofs/decompressor.o
+  CC      mm/page_isolation.o
+  CC      crypto/rsa_helper.o
+  CC      crypto/rsa-pkcs1pad.o
+  CC      fs/erofs/zmap.o
+  CC      mm/zsmalloc.o
+  CC      crypto/acompress.o
+  CC      fs/erofs/zdata.o
+  CC      crypto/scompress.o
+  AR      fs/erofs/erofs.o
+  AR      fs/erofs/built-in.o
+  AR      fs/exofs/built-in.o
+  CC      mm/early_ioremap.o
+  CC      fs/exportfs/expfs.o
+  CC      mm/cma.o
+  CC      kernel/events/ring_buffer.o
+  CC      crypto/algboss.o
+  AR      fs/exportfs/exportfs.o
+  AR      fs/exportfs/built-in.o
+  CC      fs/ext4/balloc.o
+  CC      crypto/testmgr.o
+  CC      mm/frame_vector.o
+  CC      kernel/events/callchain.o
+  CC      fs/ext4/bitmap.o
+  CC      mm/usercopy.o
+  CC      crypto/cmac.o
+  CC      kernel/events/hw_breakpoint.o
+  CC      fs/ext4/block_validity.o
+  CC      crypto/hmac.o
+  AR      mm/built-in.o
+  CC      block/bio.o
+  CC      fs/ext4/dir.o
+  CC      crypto/xcbc.o
+  CC      kernel/events/uprobes.o
+  CC      crypto/crypto_null.o
+  CC      fs/ext4/ext4_jbd2.o
+  CC      crypto/md5.o
+  CC      fs/ext4/extents.o
+  CC      block/elevator.o
+  AR      kernel/events/built-in.o
+  CC      kernel/irq/irqdesc.o
+  CC      crypto/sha1_generic.o
+  CC      kernel/irq/handle.o
+  CC      crypto/sha256_generic.o
+  CC      block/blk-core.o
+  CC      kernel/irq/manage.o
+  CC      crypto/sha512_generic.o
+  CC      kernel/irq/spurious.o
+  CC      fs/ext4/extents_status.o
+  CC      crypto/gf128mul.o
+  CC      kernel/irq/resend.o
+  CC      kernel/irq/chip.o
+  CC      crypto/ecb.o
+  CC      fs/ext4/file.o
+  CC      crypto/cbc.o
+  CC      block/blk-tag.o
+  CC      crypto/cts.o
+  CC      fs/ext4/fsmap.o
+  CC      kernel/irq/dummychip.o
+  CC      crypto/xts.o
+  CC      kernel/irq/devres.o
+  CC      block/blk-sysfs.o
+  CC      fs/ext4/fsync.o
+  CC      kernel/irq/autoprobe.o
+  CC      block/blk-flush.o
+  CC      crypto/ctr.o
+In file included from ../include/linux/kernel.h:14,
+                 from ../include/linux/list.h:9,
+                 from ../include/linux/preempt.h:11,
+                 from ../include/linux/spinlock.h:51,
+                 from ../include/linux/seqlock.h:36,
+                 from ../include/linux/time.h:6,
+                 from ../fs/ext4/fsync.c:26:
+../fs/ext4/fsync.c: In function ‘ext4_sync_file’:
+../fs/ext4/fsync.c:208:36: warning: format ‘%u’ expects argument of type ‘unsigned int’, but argument 3 has type ‘kuid_t’ [-Wformat=]
+  208 |                         ext4_debug("comm: %s: (uid %u, gid %u): don't wait transaction finish\n",
+      |                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../include/linux/printk.h:160:32: note: in definition of macro ‘no_printk’
+  160 |                         printk(fmt, ##__VA_ARGS__);     \
+      |                                ^~~
+../fs/ext4/fsync.c:208:25: note: in expansion of macro ‘ext4_debug’
+  208 |                         ext4_debug("comm: %s: (uid %u, gid %u): don't wait transaction finish\n",
+      |                         ^~~~~~~~~~
+../fs/ext4/fsync.c:208:53: note: format string is defined here
+  208 |                         ext4_debug("comm: %s: (uid %u, gid %u): don't wait transaction finish\n",
+      |                                                    ~^
+      |                                                     |
+      |                                                     unsigned int
+In file included from ../include/linux/kernel.h:14,
+                 from ../include/linux/list.h:9,
+                 from ../include/linux/preempt.h:11,
+                 from ../include/linux/spinlock.h:51,
+                 from ../include/linux/seqlock.h:36,
+                 from ../include/linux/time.h:6,
+                 from ../fs/ext4/fsync.c:26:
+../fs/ext4/fsync.c:208:36: warning: format ‘%u’ expects argument of type ‘unsigned int’, but argument 4 has type ‘kgid_t’ [-Wformat=]
+  208 |                         ext4_debug("comm: %s: (uid %u, gid %u): don't wait transaction finish\n",
+      |                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../include/linux/printk.h:160:32: note: in definition of macro ‘no_printk’
+  160 |                         printk(fmt, ##__VA_ARGS__);     \
+      |                                ^~~
+../fs/ext4/fsync.c:208:25: note: in expansion of macro ‘ext4_debug’
+  208 |                         ext4_debug("comm: %s: (uid %u, gid %u): don't wait transaction finish\n",
+      |                         ^~~~~~~~~~
+../fs/ext4/fsync.c:208:61: note: format string is defined here
+  208 |                         ext4_debug("comm: %s: (uid %u, gid %u): don't wait transaction finish\n",
+      |                                                            ~^
+      |                                                             |
+      |                                                             unsigned int
+  CC      fs/ext4/hash.o
+  CC      kernel/irq/irqdomain.o
+  CC      crypto/gcm.o
+  CC      fs/ext4/ialloc.o
+  CC      block/blk-settings.o
+  CC      kernel/irq/proc.o
+  CC      crypto/ccm.o
+  CC      block/blk-ioc.o
+  CC      kernel/irq/cpuhotplug.o
+  CC      fs/ext4/indirect.o
+  CC      crypto/cryptd.o
+  CC      kernel/irq/pm.o
+  CC      block/blk-map.o
+  CC      kernel/irq/affinity.o
+  CC      fs/ext4/inline.o
+  CC      block/blk-exec.o
+  CC      crypto/des_generic.o
+  AR      kernel/irq/built-in.o
+  AR      kernel/livepatch/built-in.o
+  CC      kernel/locking/mutex.o
+  CC      block/blk-merge.o
+  CC      kernel/locking/semaphore.o
+  CC      crypto/blowfish_generic.o
+  CC      crypto/blowfish_common.o
+  CC      fs/ext4/inode.o
+  CC      kernel/locking/rwsem.o
+  CC      kernel/locking/percpu-rwsem.o
+  CC      crypto/twofish_generic.o
+  CC      block/blk-softirq.o
+  CC      kernel/locking/spinlock.o
+  CC      crypto/twofish_common.o
+  CC      kernel/locking/osq_lock.o
+  CC      block/blk-timeout.o
+  CC      kernel/locking/rtmutex.o
+  CC      crypto/aes_generic.o
+  CC      block/blk-lib.o
+  CC      kernel/locking/rwsem-xadd.o
+  CC      crypto/arc4.o
+  AR      kernel/locking/built-in.o
+  CC      kernel/power/qos.o
+  CC      block/blk-mq.o
+  CC      crypto/deflate.o
+  CC      crypto/crc32c_generic.o
+  CC      fs/ext4/ioctl.o
+  CC      crypto/crc32_generic.o
+  CC      kernel/power/main.o
+  CC      crypto/authenc.o
+  CC      kernel/power/process.o
+  CC      fs/ext4/mballoc.o
+  CC      crypto/authencesn.o
+  CC      block/blk-mq-tag.o
+  CC      kernel/power/suspend.o
+  CC      crypto/lzo.o
+  CC      block/blk-stat.o
+  CC      crypto/lz4.o
+  CC      kernel/power/wakelock.o
+  CC      crypto/rng.o
+  CC      kernel/power/poweroff.o
+  CC      block/blk-mq-sysfs.o
+  CC      kernel/power/wakeup_reason.o
+  CC      crypto/drbg.o
+  CC      block/blk-mq-cpumap.o
+  AR      kernel/power/built-in.o
+  CC      kernel/printk/printk.o
+  CC      crypto/jitterentropy.o
+  CC      crypto/jitterentropy-kcapi.o
+  CC      fs/ext4/migrate.o
+  CC      block/blk-mq-sched.o
+  CC      crypto/ghash-generic.o
+  CC      fs/ext4/mmp.o
+  CC      crypto/ecc.o
+  CC      block/ioctl.o
+  CC      fs/ext4/move_extent.o
+  CC      kernel/printk/printk_safe.o
+  CC      crypto/ecdh.o
+  AR      kernel/printk/built-in.o
+  CC      kernel/rcu/update.o
+  CC      fs/ext4/namei.o
+  CC      crypto/ecdh_helper.o
+  CC      block/genhd.o
+  CC      crypto/asymmetric_keys/asymmetric_type.o
+  CC      kernel/rcu/sync.o
+  CC      kernel/rcu/srcutree.o
+  CC      crypto/asymmetric_keys/restrict.o
+  CC      crypto/asymmetric_keys/signature.o
+  CC      block/partition-generic.o
+  CC      crypto/asymmetric_keys/public_key.o
+  CC      kernel/rcu/tree.o
+  CC      fs/ext4/page-io.o
+  ASN.1   crypto/asymmetric_keys/x509-asn1.c
+  ASN.1   crypto/asymmetric_keys/x509_akid-asn1.c
+  CC      crypto/asymmetric_keys/x509_public_key.o
+  CC      block/ioprio.o
+  ASN.1   crypto/asymmetric_keys/pkcs7-asn1.c
+  CC      crypto/asymmetric_keys/pkcs7_trust.o
+  CC      fs/ext4/readpage.o
+  CC      crypto/asymmetric_keys/pkcs7_verify.o
+  CC      block/badblocks.o
+  AR      crypto/asymmetric_keys/asymmetric_keys.o
+  CC      crypto/asymmetric_keys/x509-asn1.o
+  CC      crypto/asymmetric_keys/x509_akid-asn1.o
+  CC      fs/ext4/resize.o
+  CC      crypto/asymmetric_keys/x509_cert_parser.o
+  CC      crypto/asymmetric_keys/pkcs7-asn1.o
+  CC      crypto/asymmetric_keys/pkcs7_parser.o
+  CC      block/partitions/check.o
+  CC      kernel/rcu/rcu_segcblist.o
+  AR      crypto/asymmetric_keys/x509_key_parser.o
+  CC      block/partitions/msdos.o
+  AR      crypto/asymmetric_keys/pkcs7_message.o
+  AR      crypto/asymmetric_keys/built-in.o
+  CC      crypto/hash_info.o
+  CC      crypto/simd.o
+  AR      kernel/rcu/built-in.o
+  CC      kernel/sched/core.o
+  CC      fs/ext4/super.o
+  CC      block/partitions/efi.o
+  AR      crypto/crypto.o
+  AR      crypto/crypto_algapi.o
+  AR      crypto/crypto_blkcipher.o
+  AR      crypto/crypto_hash.o
+  CC      crypto/rsapubkey-asn1.o
+  CC      crypto/rsaprivkey-asn1.o
+  AR      crypto/crypto_acompress.o
+  AR      crypto/cryptomgr.o
+  AR      crypto/jitterentropy_rng.o
+  AR      crypto/ecdh_generic.o
+  AR      crypto/crypto_simd.o
+  AR      crypto/rsa_generic.o
+  AR      crypto/built-in.o
+  CC      block/scsi_ioctl.o
+In file included from ../arch/arm64/include/asm/bug.h:38,
+                 from ../include/linux/bug.h:5,
+                 from ../arch/arm64/include/asm/cmpxchg.h:21,
+                 from ../arch/arm64/include/asm/atomic.h:41,
+                 from ../include/linux/atomic.h:5,
+                 from ../include/linux/rcupdate.h:38,
+                 from ../include/linux/rculist.h:11,
+                 from ../include/linux/pid.h:5,
+                 from ../include/linux/sched.h:14,
+                 from ../kernel/sched/core.c:8:
+../kernel/sched/core.c: In function ‘uclamp_group_get’:
+../kernel/sched/core.c:1563:33: warning: format ‘%u’ expects argument of type ‘unsigned int’, but argument 7 has type ‘long unsigned int:53’ [-Wformat=]
+ 1563 |                         WARN(1, "invalid CPU[%d] clamp group [%u:%u] refcount: [%u]\n",
+      |                                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 1564 |                              cpu, clamp_id, group_id,
+ 1565 |                              uc_cpu->group[clamp_id][group_id].tasks);
+      |                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |                                                               |
+      |                                                               long unsigned int:53
+../include/asm-generic/bug.h:90:71: note: in definition of macro ‘__WARN_printf’
+   90 | #define __WARN_printf(arg...)   warn_slowpath_fmt(__FILE__, __LINE__, arg)
+      |                                                                       ^~~
+../kernel/sched/core.c:1563:25: note: in expansion of macro ‘WARN’
+ 1563 |                         WARN(1, "invalid CPU[%d] clamp group [%u:%u] refcount: [%u]\n",
+      |                         ^~~~
+../kernel/sched/core.c:1563:82: note: format string is defined here
+ 1563 |                         WARN(1, "invalid CPU[%d] clamp group [%u:%u] refcount: [%u]\n",
+      |                                                                                 ~^
+      |                                                                                  |
+      |                                                                                  unsigned int
+../kernel/sched/core.c: In function ‘__schedule_bug’:
+../kernel/sched/core.c:4501:13: warning: unused variable ‘i’ [-Wunused-variable]
+ 4501 |         int i = 0;
+      |             ^
+  AR      block/partitions/built-in.o
+  CC      fs/f2fs/dir.o
+  CC      block/noop-iosched.o
+  CC      fs/f2fs/file.o
+  CC      block/deadline-iosched.o
+  CC      block/cfq-iosched.o
+  CC      block/mq-deadline.o
+  CC      block/kyber-iosched.o
+  CC      block/compat_ioctl.o
+  CC      fs/f2fs/inode.o
+  CC      block/blk-mq-virtio.o
+  CC      fs/f2fs/namei.o
+  CC      fs/ext4/symlink.o
+  CC      block/blk-wbt.o
+  CC      fs/ext4/sysfs.o
+  CC      kernel/sched/loadavg.o
+  CC      fs/ext4/xattr.o
+  CC      fs/f2fs/hash.o
+  CC      kernel/sched/clock.o
+  CC      block/keyslot-manager.o
+  CC      fs/f2fs/super.o
+  CC      kernel/sched/cputime.o
+  CC      block/bio-crypt-ctx.o
+  CC      kernel/sched/idle_task.o
+  CC      fs/ext4/xattr_trusted.o
+  CC      kernel/sched/fair.o
+  CC      block/blk-crypto.o
+  CC      fs/ext4/xattr_user.o
+In file included from ../block/blk-crypto.c:14:
+../block/blk-crypto.c: In function ‘blk_crypto_flock’:
+../include/linux/keyslot-manager.h:101:13: error: inlining failed in call to ‘always_inline’ ‘ksm_flock’: function body not available
+  101 | inline void ksm_flock(struct keyslot_manager *ksm, unsigned int flags);
+      |             ^~~~~~~~~
+../block/blk-crypto.c:310:9: note: called from here
+  310 |         ksm_flock(ksm, flags);
+      |         ^~~~~~~~~~~~~~~~~~~~~
+make[2]: *** [../scripts/Makefile.build:359: block/blk-crypto.o] Error 1
+make[1]: *** [/home/runner/work/kernel-bpf/kernel-bpf/kernel/Makefile:1208: block] Error 2
+make[1]: *** Waiting for unfinished jobs....
+  CC      kernel/time/time.o
+In file included from ../kernel/sched/fair.c:12709:
+../kernel/sched/eas_plus.c: In function ‘update_sg_util’:
+../kernel/sched/eas_plus.c:913:35: warning: unused variable ‘sg’ [-Wunused-variable]
+  913 |         const struct sched_group *sg;
+      |                                   ^~
+../kernel/sched/eas_plus.c:912:30: warning: unused variable ‘sd’ [-Wunused-variable]
+  912 |         struct sched_domain *sd;
+      |                              ^~
+../kernel/sched/eas_plus.c: In function ‘task_match_on_dst_cpu’:
+../kernel/sched/eas_plus.c:1736:20: warning: unused variable ‘rq’ [-Wunused-variable]
+ 1736 |         struct rq *rq = cpu_rq(target_cpu);
+      |                    ^~
+../kernel/sched/eas_plus.c:1735:29: warning: unused variable ‘target_tsk’ [-Wunused-variable]
+ 1735 |         struct task_struct *target_tsk;
+      |                             ^~~~~~~~~~
+  CC      fs/ext4/acl.o
+  CC      fs/ext4/xattr_security.o
+  CC      kernel/time/timer.o
+  CC      fs/ext4/verity.o
+  AR      fs/ext4/ext4.o
+  AR      fs/ext4/built-in.o
+  CC      kernel/trace/trace_clock.o
+  CC      kernel/trace/ring_buffer.o
+  CC      fs/f2fs/inline.o
+  CC      kernel/time/hrtimer.o
+  CC      fs/f2fs/checkpoint.o
+  CC      kernel/time/timekeeping.o
+  CC      kernel/trace/trace.o
+  CC      fs/f2fs/gc.o
+  CC      kernel/time/ntp.o
+  CC      kernel/sched/rt.o
+  CC      kernel/time/clocksource.o
+  CC      kernel/time/jiffies.o
+  CC      fs/f2fs/data.o
+  CC      kernel/time/timer_list.o
+  CC      kernel/sched/deadline.o
+  CC      kernel/time/timeconv.o
+  CC      kernel/time/timecounter.o
+  CC      kernel/time/alarmtimer.o
+  CC      kernel/trace/trace_output.o
+  CC      kernel/sched/wait.o
+  CC      kernel/time/posix-timers.o
+  CC      kernel/sched/wait_bit.o
+  CC      kernel/sched/swait.o
+  CC      kernel/trace/trace_seq.o
+  CC      kernel/time/posix-cpu-timers.o
+  CC      kernel/sched/completion.o
+  CC      kernel/trace/trace_stat.o
+  CC      fs/f2fs/node.o
+  CC      kernel/sched/idle.o
+  CC      kernel/time/posix-clock.o
+  CC      kernel/trace/trace_printk.o
+  CC      kernel/sched/cpupri.o
+  CC      kernel/time/itimer.o
+  CC      kernel/sched/cpudeadline.o
+  CC      kernel/trace/trace_sched_switch.o
+  CC      kernel/sched/topology.o
+  CC      kernel/time/clockevents.o
+  CC      kernel/trace/trace_nop.o
+  CC      kernel/trace/blktrace.o
+  CC      kernel/time/tick-common.o
+  CC      kernel/sched/stop_task.o
+  CC      fs/f2fs/segment.o
+  CC      kernel/sched/energy.o
+  CC      kernel/trace/trace_events.o
+  CC      kernel/sched/stats.o
+  CC      kernel/time/tick-broadcast.o
+  CC      kernel/sched/debug.o
+  CC      kernel/time/tick-broadcast-hrtimer.o
+  CC      kernel/time/sched_clock.o
+  CC      kernel/time/tick-oneshot.o
+  CC      kernel/trace/trace_export.o
+  CC      kernel/sched/tune.o
+  CC      kernel/time/tick-sched.o
+  CC      kernel/trace/trace_event_perf.o
+  AR      kernel/time/built-in.o
+  CC      kernel/freezer.o
+  CC      kernel/trace/trace_events_filter.o
+  CC      fs/f2fs/recovery.o
+  CC      kernel/sched/cpuacct.o
+  CC      kernel/sched/cpufreq.o
+  CC      kernel/trace/trace_events_trigger.o
+  CC      fs/f2fs/shrinker.o
+  CC      kernel/sched/cpufreq_schedutil.o
+  CC      fs/fat/cache.o
+  CC      fs/f2fs/extent_cache.o
+  CC      fs/fat/dir.o
+  CC      kernel/trace/bpf_trace.o
+  CC      fs/f2fs/sysfs.o
+  CC      kernel/sched/membarrier.o
+  CC      kernel/sched/psi.o
+  CC      fs/fat/fatent.o
+  CC      fs/f2fs/debug.o
+  CC      kernel/trace/trace_kprobe.o
+  AR      kernel/sched/built-in.o
+  CC      fs/f2fs/xattr.o
+  CC      fs/fuse/dev.o
+  CC      fs/fat/file.o
+  CC      kernel/trace/power-traces.o
+  CC      fs/f2fs/acl.o
+  CC      fs/fat/inode.o
+  CC      fs/f2fs/verity.o
+  CC      fs/fuse/dir.o
+  AR      fs/f2fs/f2fs.o
+  AR      fs/f2fs/built-in.o
+  CC      fs/fat/misc.o
+  CC      kernel/trace/rpm-traces.o
+  CC      fs/fat/nfs.o
+  CC      kernel/profile.o
+  CC      kernel/trace/trace_probe.o
+  CC      fs/fat/namei_vfat.o
+  CC      fs/fuse/file.o
+  CC      kernel/stacktrace.o
+  CC      fs/fat/namei_msdos.o
+  CC      kernel/trace/trace_uprobe.o
+  CC      fs/incfs/data_mgmt.o
+  AR      fs/fat/fat.o
+  AR      fs/fat/vfat.o
+  AR      fs/fat/msdos.o
+  AR      fs/fat/built-in.o
+  CC      fs/fuse/inode.o
+  CC      fs/incfs/format.o
+  CC      kernel/trace/mtk_trace.o
+  AR      kernel/trace/built-in.o
+  CC      kernel/futex.o
+  CC      fs/incfs/integrity.o
+  CC      fs/fuse/control.o
+  CC      kernel/smp.o
+  CC      fs/incfs/main.o
+  CC      fs/incfs/vfs.o
+  CC      fs/fuse/xattr.o
+  CC      fs/fuse/acl.o
+  CC      fs/isofs/namei.o
+  CC      fs/isofs/inode.o
+  CC      fs/fuse/passthrough.o
+  CC      kernel/uid16.o
+  AR      fs/incfs/incrementalfs.o
+  AR      fs/incfs/built-in.o
+  CC      fs/isofs/dir.o
+  AR      fs/fuse/fuse.o
+  AR      fs/fuse/built-in.o
+  CC      kernel/module.o
+  CC      fs/jbd2/transaction.o
+  CC      fs/kernfs/mount.o
+  CC      fs/isofs/util.o
+  CC      fs/isofs/rock.o
+  CC      fs/kernfs/inode.o
+  CC      fs/isofs/export.o
+  CC      fs/kernfs/dir.o
+  CC      fs/isofs/joliet.o
+  CC      fs/isofs/compress.o
+  CC      fs/jbd2/commit.o
+  AR      fs/isofs/isofs.o
+  AR      fs/isofs/built-in.o
+  CC      fs/nls/nls_base.o
+  CC      fs/kernfs/file.o
+  CC      kernel/kallsyms.o
+  CC      fs/nls/nls_cp437.o
+  CC      fs/jbd2/recovery.o
+  CC      fs/nls/nls_cp950.o
+  CC      fs/kernfs/symlink.o
+  CC      fs/nls/nls_ascii.o
+  CC      fs/jbd2/checkpoint.o
+  AR      fs/kernfs/built-in.o
+  CC      fs/notify/fsnotify.o
+  CC      fs/nls/nls_iso8859-1.o
+  CC      kernel/compat.o
+  CC      fs/nls/nls_utf8.o
+  AR      fs/nls/built-in.o
+  CC      fs/jbd2/revoke.o
+  CC      fs/notify/notification.o
+  CC      fs/jbd2/journal.o
+  CC      fs/notify/group.o
+  CC      fs/notify/mark.o
+  CC      kernel/utsname.o
+  CC      fs/ntfs/aops.o
+  CC      kernel/pid_namespace.o
+  CC      fs/notify/fdinfo.o
+  CC      fs/notify/dnotify/dnotify.o
+  GZIP    kernel/config_data.gz
+  CC      kernel/stop_machine.o
+  AR      fs/notify/dnotify/built-in.o
+  AR      fs/notify/fanotify/built-in.o
+  CC      fs/ntfs/attrib.o
+  CC      fs/notify/inotify/inotify_fsnotify.o
+  CC      fs/notify/inotify/inotify_user.o
+  AR      fs/jbd2/jbd2.o
+  AR      fs/jbd2/built-in.o
+  CC      fs/overlayfs/super.o
+  CC      kernel/audit.o
+  AR      fs/notify/inotify/built-in.o
+  AR      fs/notify/built-in.o
+  CC      fs/overlayfs/namei.o
+  CC      fs/ntfs/collate.o
+  CC      fs/ntfs/compress.o
+  CC      kernel/auditfilter.o
+  CC      fs/overlayfs/util.o
+  CC      fs/overlayfs/inode.o
+  CC      fs/ntfs/debug.o
+  CC      fs/ntfs/dir.o
+  CC      fs/overlayfs/dir.o
+  CC      kernel/auditsc.o
+  CC      kernel/audit_watch.o
+  CC      fs/overlayfs/readdir.o
+  CC      fs/ntfs/file.o
+  CC      fs/proc/task_mmu.o
+  CC      fs/overlayfs/copy_up.o
+  CC      kernel/audit_fsnotify.o
+  CC      fs/proc/inode.o
+  AR      fs/overlayfs/overlay.o
+  AR      fs/overlayfs/built-in.o
+  CC      fs/pstore/inode.o
+  CC      fs/ntfs/index.o
+  CC      kernel/audit_tree.o
+  CC      fs/proc/root.o
+  CC      fs/ntfs/inode.o
+  CC      fs/pstore/platform.o
+  CC      fs/proc/base.o
+  CC      fs/pstore/pmsg.o
+  CC      kernel/kprobes.o
+  CC      fs/pstore/ram.o
+  CC      fs/ntfs/mft.o
+  CC      fs/pstore/ram_core.o
+  CC      fs/proc/generic.o
+  CC      kernel/seccomp.o
+  AR      fs/pstore/pstore.o
+  AR      fs/pstore/ramoops.o
+  AR      fs/pstore/built-in.o
+  CC      fs/quota/dquot.o
+  CC      fs/ntfs/mst.o
+  CC      fs/proc/array.o
+  CC      kernel/utsname_sysctl.o
+  CC      fs/ntfs/namei.o
+  CC      kernel/delayacct.o
+  CC      fs/ntfs/runlist.o
+  CC      fs/proc/fd.o
+  CC      kernel/taskstats.o
+  CC      fs/proc/proc_tty.o
+  CC      fs/quota/quota_v2.o
+  CC      kernel/tsacct.o
+  CC      fs/proc/cmdline.o
+  CC      fs/proc/consoles.o
+  CC      fs/ntfs/super.o
+  CC      kernel/tracepoint.o
+  CC      fs/quota/quota_tree.o
+  CC      fs/proc/cpuinfo.o
+  CC      fs/proc/devices.o
+  CC      kernel/irq_work.o
+  CC      fs/proc/interrupts.o
+  CC      fs/quota/quota.o
+  CC      fs/proc/loadavg.o
+  CC      kernel/cpu_pm.o
+  CC      fs/proc/meminfo.o
+  CC      fs/ntfs/sysctl.o
+  CC      fs/ntfs/unistr.o
+  CC      fs/quota/kqid.o
+  CC      fs/proc/stat.o
+  CC      kernel/memremap.o
+  CC      fs/ntfs/upcase.o
+  CC      fs/quota/netlink.o
+  CC      fs/proc/uptime.o
+  CC      fs/ntfs/bitmap.o
+  CC      fs/proc/version.o
+  CHK     kernel/config_data.h
+  UPD     kernel/config_data.h
+  CC      kernel/configs.o
+  CC      fs/proc/softirqs.o
+  AR      fs/quota/built-in.o
+  CC      fs/ntfs/lcnalloc.o
+  CC      fs/ramfs/inode.o
+  CC      fs/proc/namespaces.o
+  AR      kernel/built-in.o
+  CC      fs/sdcardfs/dentry.o
+  CC      fs/ramfs/file-mmu.o
+  CC      fs/sdcardfs/file.o
+  CC      fs/proc/self.o
+  CC      fs/ntfs/logfile.o
+  AR      fs/ramfs/ramfs.o
+  AR      fs/ramfs/built-in.o
+  CC      fs/sdfat/sdfat.o
+  CC      fs/proc/thread_self.o
+  CC      fs/sdcardfs/inode.o
+  CC      fs/proc/uid.o
+  CC      fs/ntfs/quota.o
+  CC      fs/ntfs/usnjrnl.o
+  CC      fs/proc/proc_sysctl.o
+  CC      fs/sdcardfs/main.o
+  AR      fs/ntfs/ntfs.o
+  AR      fs/ntfs/built-in.o
+  CC      fs/sysfs/file.o
+  CC      fs/sdcardfs/super.o
+  CC      fs/sdfat/core.o
+  CC      fs/sysfs/dir.o
+  CC      fs/sdcardfs/lookup.o
+  CC      fs/proc/proc_net.o
+  CC      fs/sysfs/symlink.o
+  CC      fs/sdcardfs/mmap.o
+  CC      fs/sdcardfs/packagelist.o
+  CC      fs/sysfs/mount.o
+  CC      fs/proc/kmsg.o
+  CC      fs/sysfs/group.o
+  CC      fs/proc/page.o
+  CC      fs/sdfat/core_fat.o
+  AR      fs/sysfs/built-in.o
+  CC      fs/sdfat/core_exfat.o
+  AR      fs/proc/proc.o
+  AR      fs/proc/built-in.o
+  CC      fs/tracefs/inode.o
+  CC      fs/sdcardfs/derived_perm.o
+  AR      fs/tracefs/tracefs.o
+  AR      fs/tracefs/built-in.o
+  CC      fs/sdfat/api.o
+  CC      fs/sdfat/blkdev.o
+  AR      fs/sdcardfs/sdcardfs.o
+  AR      fs/sdcardfs/built-in.o
+  CC      fs/sdfat/fatent.o
+  CC      fs/sdfat/amap_smart.o
+  CC      fs/sdfat/cache.o
+  CC      fs/verity/enable.o
+  CC      fs/eventpoll.o
+  CC      fs/anon_inodes.o
+  CC      fs/sdfat/dfr.o
+  CC      fs/sdfat/nls.o
+  CC      fs/verity/hash_algs.o
+  CC      fs/verity/init.o
+  CC      fs/signalfd.o
+  CC      fs/sdfat/misc.o
+  CC      fs/timerfd.o
+  CC      fs/verity/measure.o
+  CC      fs/verity/open.o
+  CC      fs/verity/verify.o
+  CC      fs/eventfd.o
+  CC      fs/sdfat/mpage.o
+  CC      fs/verity/signature.o
+  CC      fs/aio.o
+  AR      fs/verity/built-in.o
+  CC      fs/sdfat/extent.o
+  CC      fs/locks.o
+  CC      fs/sdfat/statistics.o
+  CC      fs/compat.o
+  AR      fs/sdfat/sdfat_fs.o
+  AR      fs/sdfat/built-in.o
+  CC      fs/compat_ioctl.o
+  CC      fs/binfmt_script.o
+  CC      fs/binfmt_elf.o
+  CC      fs/compat_binfmt_elf.o
+  CC      fs/mbcache.o
+  CC      fs/posix_acl.o
+  CC      fs/coredump.o
+  CC      fs/drop_caches.o
+  CC      fs/fhandle.o
+  CC      fs/dcookies.o
+  AR      fs/built-in.o
+make[1]: Leaving directory '/home/runner/work/kernel-bpf/kernel-bpf/kernel/out'
+make: *** [Makefile:153: sub-make] Error 2
