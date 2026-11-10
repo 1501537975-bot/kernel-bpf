@@ -577,6 +577,33 @@ else
   log "    跳过屏幕控制台 (enable_fbcon=${enable_fbcon:-未设置})"
 fi
 
+# ⑥.5 卡死自恢复 (诊断用, 默认关)
+#    实测 (CI#47 与真机): CONFIG_MTK_WATCHDOG=y 是硬件狗, 由内核定时喂狗 ——
+#    内核自己活着、只是**用户态 init 被卡住**时, 硬件狗照样被喂, 永远不会复位;
+#    DETECT_HUNG_TASK / SOFTLOCKUP_DETECTOR 又都是 not set,
+#    所以 "卡死不 panic" 的镜像只能靠人长按 音量下+电源 才能回来 (实测 fix4 黑屏 1h+)。
+#    打开下面这些后: 卡在 D 态的进程 / CPU 软锁 -> 直接转成 panic
+#    -> CONFIG_PANIC_TIMEOUT=1 自动重启 -> 无人值守也能一轮接一轮往下跑。
+if [ "${enable_hungpanic:-0}" = "true" ] || [ "${enable_hungpanic:-0}" = "1" ]; then
+  log "    打开卡死自恢复 (hung task / softlockup -> panic)"
+  "$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" \
+    --enable CONFIG_DETECT_HUNG_TASK \
+    --set-val CONFIG_DEFAULT_HUNG_TASK_TIMEOUT 30 \
+    --enable CONFIG_BOOTPARAM_HUNG_TASK_PANIC \
+    --set-val CONFIG_BOOTPARAM_HUNG_TASK_PANIC_VALUE 1 \
+    --enable CONFIG_LOCKUP_DETECTOR \
+    --enable CONFIG_SOFTLOCKUP_DETECTOR \
+    --enable CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC \
+    --set-val CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC_VALUE 1 \
+    --enable CONFIG_WQ_WATCHDOG \
+    --enable CONFIG_PANIC_ON_OOPS \
+    --set-val CONFIG_PANIC_ON_OOPS_VALUE 1 \
+    --set-val CONFIG_PANIC_TIMEOUT 1 || true
+  ok "  卡死自恢复已打开 (hung_task 30s + softlockup -> panic, panic_timeout=1)"
+else
+  log "    跳过卡死自恢复 (enable_hungpanic=${enable_hungpanic:-未设置})"
+fi
+
 # ─────────────────────────────────────────────────────────────
 # ★★★ 强制对齐 kernel-release (最关键的一步, 必须在编译之前做)
 #
