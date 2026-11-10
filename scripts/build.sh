@@ -604,6 +604,46 @@ else
   log "    跳过卡死自恢复 (enable_hungpanic=${enable_hungpanic:-未设置})"
 fi
 
+# ⑥.6 对齐 VINTF FCM 的内核要求 (默认关)
+#    实测 (2026-11-11): ColorOS 17 的 framework 矩阵 compatibility_matrix.5.xml
+#    的 4.14.180 主块 (无条件) 带内核硬指标; 本机可用(<=4.14.186)的 5 个 <kernel>
+#    块合计只要求 250+8+1+1+1 条, 其中真实不满足的恰好两条:
+#        CONFIG_CC_STACKPROTECTOR_STRONG  要求 y, 我们却在 ③-b 主动关掉了
+#        CONFIG_FHANDLE                   要求 n, 我们却在 ② 主动打开了
+#    而能正常开机的**原厂 A11 内核**正好是 `# CONFIG_FHANDLE is not set` +
+#    `CONFIG_CC_STACKPROTECTOR_STRONG=y` —— 即 CI 内核与本机原厂配置的差异
+#    正好是这两条, 对齐它既过 FCM 又更贴近原厂, 对 vendor .ko/HAL 更安全。
+#
+#    ③-b 当年关 STRONG 的根因: scripts/Kbuild.include 的 __cc-option 里硬编码
+#    了 -Werror, 任何警告都让 cc-option 探测失败, 于是
+#        Cannot use CONFIG_CC_STACKPROTECTOR_STRONG: -fstack-protector-strong not supported
+#    所以这里先把那句 -Werror 摘掉 (幂等, 留 .ci-bak 备份), 再打开 STRONG。
+if [ "${enable_fcmconfig:-0}" = "true" ] || [ "${enable_fcmconfig:-0}" = "1" ]; then
+  log "    对齐 VINTF FCM (FHANDLE=n + CC_STACKPROTECTOR_STRONG=y)"
+  KBI="$KERNEL_DIR/scripts/Kbuild.include"
+  if [ -f "$KBI" ] && grep -q -- "-Werror" "$KBI"; then
+    cp -f "$KBI" "$KBI.ci-bak" 2>/dev/null || true
+    sed -i "s/ -Werror / /" "$KBI"
+    log "  摘掉 cc-option 的 -Werror 后 __cc-option 行:"
+    grep -n "cc-option" "$KBI" | head -3 | sed "s/^/      /" || true
+  else
+    log "  Kbuild.include 里没有 -Werror 需要摘 (或文件不存在)"
+  fi
+  "$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" \
+    --disable CONFIG_FHANDLE \
+    --enable CONFIG_CC_STACKPROTECTOR \
+    --enable CONFIG_CC_STACKPROTECTOR_STRONG \
+    --disable CONFIG_CC_STACKPROTECTOR_REGULAR \
+    --disable CONFIG_CC_STACKPROTECTOR_NONE || true
+  # ③-b 已在上面把它们关掉, 这里再写一次确保是打开状态
+  "$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" \
+    --enable CONFIG_CC_STACKPROTECTOR \
+    --enable CONFIG_CC_STACKPROTECTOR_STRONG || true
+  ok "  FCM 对齐完成 (FHANDLE=n, CC_STACKPROTECTOR_STRONG=y)"
+else
+  log "    跳过 VINTF FCM 对齐 (enable_fcmconfig=${enable_fcmconfig:-未设置})"
+fi
+
 # ─────────────────────────────────────────────────────────────
 # ★★★ 强制对齐 kernel-release (最关键的一步, 必须在编译之前做)
 #

@@ -33,6 +33,10 @@ on:
         description: '卡死自恢复 —— 诊断用: 进程卡在 D 态/CPU 软锁 30s 即转 panic, 配合 PANIC_TIMEOUT=1 自动重启 (硬件狗 MTK_WATCHDOG 对"用户态卡死"无效, 没有它就永远卡着等人按键)'
         type: boolean
         default: false
+      enable_fcmconfig:
+        description: '对齐 VINTF FCM 的内核要求 —— 兼容用: 关闭 CONFIG_FHANDLE (ColorOS 的 FCM level5 4.14.180 无条件下要求 =n, 与原厂 A11 内核一致) + 打开 CONFIG_CC_STACKPROTECTOR_STRONG (FCM 要求 =y), 并顺手摘掉 scripts/Kbuild.include 里 cc-option 的硬编码 -Werror (否则探测必然失败)'
+        type: boolean
+        default: false
       localversion:
         description: '内核版本后缀（必须保持 -perf-00252-g2f26b5917fd6 才能加载原厂 vendor 模块）'
         type: string
@@ -192,6 +196,7 @@ jobs:
           enable_ksu: ${{ inputs.enable_ksu }}
           enable_fbcon: ${{ inputs.enable_fbcon }}
           enable_hungpanic: ${{ inputs.enable_hungpanic }}
+          enable_fcmconfig: ${{ inputs.enable_fcmconfig }}
           localversion: ${{ inputs.localversion }}
           # 注意: 必须用绝对路径。内核树 checkout 在 workspace 根 (kernel/),
           # 而 buildrepo/ 是本仓库 —— 两者是兄弟目录, 不是父子。
