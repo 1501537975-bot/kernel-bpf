@@ -51,10 +51,12 @@ jobs:
           sudo apt-get install -y -qq \
             bc bison flex build-essential ccache cpio \
             gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+            gcc-arm-linux-gnueabi \
             libelf-dev libssl-dev liblz4-tool lz4 zlib1g-dev \
             python3 rsync dwarves || true
           echo "=== toolchain ==="
           aarch64-linux-gnu-gcc --version | head -1
+          arm-linux-gnueabi-gcc --version | head -1
 
       - name: Inspect tree
         run: |
@@ -91,6 +93,9 @@ jobs:
           cd kernel
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
+          # arm64 内核会编 32 位兼容 vDSO, arch/arm64/Makefile 强制要求
+          # CROSS_COMPILE_ARM32 非空, 否则在解析 Makefile 阶段就 Stop。
+          export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
           export O=out
           mkdir -p "$O"
           echo "=== defconfig ==="
@@ -98,6 +103,7 @@ jobs:
           echo "=== ensure config ==="
           scripts/config --file "$O/.config" --enable CONFIG_FHANDLE 2>/dev/null || true
           scripts/config --file "$O/.config" --disable CONFIG_KSU 2>/dev/null || true
+          scripts/config --file "$O/.config" --set-str CONFIG_CROSS_COMPILE_ARM32 "arm-linux-gnueabi-" 2>/dev/null || true
           echo "=== compile ==="
           make O="$O" -j"$(nproc)" 2>&1 | tee ../buildrepo/build-tree.log
           echo "=== outputs ==="
@@ -122,6 +128,10 @@ jobs:
           if [ -f ../kernel/out/System.map ]; then
             cp ../kernel/out/System.map tree-output/System.map
           fi
+          # 日志一并回写, 便于失败时直接 git pull 排障
+          for f in build-tree.log defconfig.log; do
+            if [ -f "$f" ]; then cp "$f" "tree-output/$f"; fi
+          done
           {
             echo "source: $TREE_REPO @ $TREE_REF"
             echo "defconfig: $DEFCONFIG"
