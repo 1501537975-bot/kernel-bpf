@@ -1,6 +1,12 @@
 name: Build cezanne BPF kernel (for Android 16/17)
 
 on:
+  # push 触发时 inputs 为空, build.sh 会走内部默认
+  # (erofs=yes / bpf=yes / uname=yes / ksu=no / 原厂 localversion),
+  # 正好是 A16/A17 需要的组合; 并且让产物能回写到仓库便于取用。
+  push:
+    paths:
+      - '.github/workflows/build.yml'
   workflow_dispatch:
     inputs:
       enable_erofs:
@@ -32,6 +38,9 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     timeout-minutes: 120
+    permissions:
+      contents: write
+      actions: read
 
     steps:
       - name: Checkout kernel source
@@ -246,3 +255,30 @@ jobs:
             buildrepo/build.log
           if-no-files-found: warn
           retention-days: 30
+
+      # 把构建产物回写到仓库, 便于在没有 gh/token 的环境里取用。
+      # if: always() 保证编译失败时也能拿到 build.log 排障。
+      # commit message 带 [skip ci], 且 push trigger 的 paths 不含 ci-output/,
+      # 双保险避免自触发循环。
+      - name: Publish build outputs into repo
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd buildrepo
+          mkdir -p ci-output
+          for f in kernel-release.txt BUILD-INFO.txt config.txt System.map build.log; do
+            if [ -f "$f" ]; then cp -f "$f" ci-output/; fi
+          done
+          cp -f artifacts/*.zip ci-output/ 2>/dev/null || true
+          echo "=== 待发布产物 ==="
+          ls -lh ci-output/ || true
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+          git add -f ci-output
+          if git diff --cached --quiet; then
+            echo "没有新产物需要提交"
+          else
+            git commit -m "ci: publish A17 kernel outputs [skip ci]"
+            git push origin HEAD:main || echo "push 失败; 产物仍可从 Actions Artifacts 获取"
+          fi
