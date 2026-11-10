@@ -1,0 +1,847 @@
+[1;36m[build][0m ==== cezanne BPF 内核构建 ====
+[1;36m[build][0m erofs=yes  bpf=yes  uname=yes  ksu=no
+[1;36m[build][0m localversion=-perf-00252-g2f26b5917fd6
+    KERNEL_DIR : /home/runner/work/kernel-bpf/kernel-bpf/kernel
+    OUT        : /home/runner/work/kernel-bpf/kernel-bpf/out
+    SCRIPTS_DIR: /home/runner/work/kernel-bpf/kernel-bpf/buildrepo/scripts
+    PATCH_DIR  : /home/runner/work/kernel-bpf/kernel-bpf/buildrepo/patches
+    EROFS_TREE : /home/runner/work/kernel-bpf/kernel-bpf/buildrepo/patches/erofs
+[1;36m[build][0m [1/7] 准备交叉编译工具链
+[1;32m[ ok ][0m 使用 GCC 交叉工具链: aarch64-linux-gnu-gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0 (ld=aarch64-linux-gnu-ld)
+[1;32m[ ok ][0m 启用 ccache (缓存目录 /home/runner/.cache/ccache, 上限 5G)
+[1;36m[build][0m     编译器自检...
+      aarch64-linux-gnu-gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+[1;32m[ ok ][0m pahole: v1.25
+[1;36m[build][0m [2/7] 准备内核源码
+[1;36m[build][0m [3/7] 回合 fs/erofs
+[1;36m[erofs][0m 查找可用的 erofs 源
+[1;36m[erofs][0m 使用仓库预置的 erofs 源码 (mt6873-dev 4.14.336 原生版)
+[1;32m[ ok ][0m 已复制 include/trace/events/erofs.h (预置)
+[1;36m[erofs][0m 复制 fs/erofs
+[1;32m[ ok ][0m fs/erofs 已复制（11 个 C 文件）
+[1;32m[ ok ][0m 已修正 erofs internal.h 的 VAL -> orig_val 笔误
+[1;32m[ ok ][0m 已复制 include/uapi/linux/erofs_fs.h (8567 B)
+[1;32m[ ok ][0m EROFS_SUPER_MAGIC_V1 已由 fs/erofs 自身提供 (无需 uapi 头)
+[ ok ] 已补齐 6 个宏: EROFS_ALL_REQUIREMENTS, EROFS_INODE_LAYOUT_V1, EROFS_INODE_LAYOUT_V2, EROFS_I_DATA_MAPPING_BITS, EROFS_SUPER_MAGIC_V1, EROFS_XATTR_ENTRY_SIZE
+[1;32m[ ok ][0m 已补齐 erofs 头缺失的宏
+  erofs 标识符完整性 OK (66 个定义, 67 个被引用)
+[1;36m[erofs][0m 注册 fs/Makefile
+[1;32m[ ok ][0m fs/Makefile 已注册 erofs
+[1;36m[erofs][0m 注册 fs/Kconfig
+[1;32m[ ok ][0m fs/Kconfig 已注册
+[1;32m[ ok ][0m erofs 移植完成
+[1;32m[ ok ][0m fs/Makefile 与 fs/Kconfig 注册已确认 ✓
+[1;36m[erofs][0m 下一步: build.sh 会开启 CONFIG_EROFS_FS / CONFIG_EROFS_FS_XATTR
+[1;36m[erofs][0m 注意: 实测 K40G A16/A17 移植包的镜像**无压缩** (feature_compat=0x07),
+[1;36m[erofs][0m       所以不需要 CONFIG_EROFS_FS_ZIP
+[1;32m[ ok ][0m EROFS 移植完成
+[1;32m[ ok ][0m erofs 源码就绪, config 稍后统一设置
+[1;36m[build][0m [4/7] 回合 5.10 BPF + sys_clone3
+[1;36m[bpf][0m 检查 sys_clone3
+[1;32m[ ok ][0m sys_clone3 已存在
+[1;36m[bpf][0m 检查现有 BPF 能力
+[1;36m[bpf][0m 回合 sockmap → generic sk_msg interface
+[1;36m[bpf][0m apply include_linux_bpf-cgroup.h.patch
+[1;36m[bpf][0m apply include_linux_bpf-netns.h.patch
+[1;36m[bpf][0m apply include_linux_bpf.h.patch
+[1;36m[bpf][0m apply include_linux_bpf_lirc.h.patch
+[1;36m[bpf][0m apply include_linux_bpf_local_storage.h.patch
+[1;36m[bpf][0m apply include_linux_bpf_lsm.h.patch
+[1;36m[bpf][0m apply include_linux_bpf_types.h.patch
+[1;36m[bpf][0m apply include_linux_bpf_verifier.h.patch
+[1;36m[bpf][0m apply include_linux_bpfilter.h.patch
+[1;36m[bpf][0m apply include_linux_btf.h.patch
+[1;36m[bpf][0m apply include_linux_btf_ids.h.patch
+[1;36m[bpf][0m apply include_linux_cookie.h.patch
+[1;36m[bpf][0m apply include_linux_error-injection.h.patch
+[1;36m[bpf][0m apply include_linux_filter.h.patch
+[1;36m[bpf][0m apply include_linux_lsm_hook_defs.h.patch
+[1;36m[bpf][0m apply include_linux_rcupdate_trace.h.patch
+[1;36m[bpf][0m apply include_linux_skmsg.h.patch
+[1;36m[bpf][0m apply include_linux_sockptr.h.patch
+[1;36m[bpf][0m apply include_linux_usermode_driver.h.patch
+[1;36m[bpf][0m apply include_net_bpf_sk_storage.h.patch
+[1;36m[bpf][0m apply include_net_ipv6_stubs.h.patch
+[1;36m[bpf][0m apply include_net_page_pool.h.patch
+[1;36m[bpf][0m apply include_net_seg6_local.h.patch
+[1;36m[bpf][0m apply include_net_sock.h.patch
+[1;36m[bpf][0m apply include_net_tcp.h.patch
+[1;36m[bpf][0m apply include_net_xdp.h.patch
+[1;36m[bpf][0m apply include_net_xdp_sock.h.patch
+[1;36m[bpf][0m apply include_uapi_asm-generic_poll.h.patch
+[1;36m[bpf][0m apply include_uapi_linux_bpf.h.patch
+[1;36m[bpf][0m apply include_uapi_linux_bpf_common.h.patch
+[1;36m[bpf][0m apply include_uapi_linux_bpf_perf_event.h.patch
+[1;36m[bpf][0m apply include_uapi_linux_bpfilter.h.patch
+[1;36m[bpf][0m apply include_uapi_linux_btf.h.patch
+[1;36m[bpf][0m apply include_uapi_linux_types.h.patch
+[1;36m[bpf][0m apply kernel_bpf_Makefile.patch
+[1;36m[bpf][0m apply kernel_bpf_arraymap.c.patch
+[1;36m[bpf][0m apply kernel_bpf_bpf_inode_storage.c.patch
+[1;36m[bpf][0m apply kernel_bpf_bpf_iter.c.patch
+[1;36m[bpf][0m apply kernel_bpf_bpf_local_storage.c.patch
+[1;36m[bpf][0m apply kernel_bpf_bpf_lru_list.c.patch
+[1;36m[bpf][0m apply kernel_bpf_bpf_lru_list.h.patch
+[1;36m[bpf][0m apply kernel_bpf_bpf_lsm.c.patch
+[1;36m[bpf][0m apply kernel_bpf_bpf_struct_ops.c.patch
+[1;36m[bpf][0m apply kernel_bpf_bpf_struct_ops_types.h.patch
+[1;36m[bpf][0m apply kernel_bpf_btf.c.patch
+[1;36m[bpf][0m apply kernel_bpf_cgroup.c.patch
+[1;36m[bpf][0m apply kernel_bpf_core.c.patch
+[1;36m[bpf][0m apply kernel_bpf_cpumap.c.patch
+[1;36m[bpf][0m apply kernel_bpf_devmap.c.patch
+[1;36m[bpf][0m apply kernel_bpf_disasm.c.patch
+[1;36m[bpf][0m apply kernel_bpf_disasm.h.patch
+[1;36m[bpf][0m apply kernel_bpf_dispatcher.c.patch
+[1;36m[bpf][0m apply kernel_bpf_hashtab.c.patch
+[1;36m[bpf][0m apply kernel_bpf_helpers.c.patch
+[1;36m[bpf][0m apply kernel_bpf_inode.c.patch
+[1;36m[bpf][0m apply kernel_bpf_local_storage.c.patch
+[1;36m[bpf][0m apply kernel_bpf_lpm_trie.c.patch
+[1;36m[bpf][0m apply kernel_bpf_map_in_map.c.patch
+[1;36m[bpf][0m apply kernel_bpf_map_in_map.h.patch
+[1;36m[bpf][0m apply kernel_bpf_map_iter.c.patch
+[1;36m[bpf][0m apply kernel_bpf_net_namespace.c.patch
+[1;36m[bpf][0m apply kernel_bpf_offload.c.patch
+[1;36m[bpf][0m apply kernel_bpf_percpu_freelist.c.patch
+[1;36m[bpf][0m apply kernel_bpf_percpu_freelist.h.patch
+[1;36m[bpf][0m apply kernel_bpf_preload.patch
+[1;36m[bpf][0m apply kernel_bpf_prog_iter.c.patch
+[1;36m[bpf][0m apply kernel_bpf_queue_stack_maps.c.patch
+[1;36m[bpf][0m apply kernel_bpf_reuseport_array.c.patch
+[1;36m[bpf][0m apply kernel_bpf_ringbuf.c.patch
+[1;36m[bpf][0m apply kernel_bpf_sockmap.c.patch
+[1;36m[bpf][0m apply kernel_bpf_stackmap.c.patch
+[1;36m[bpf][0m apply kernel_bpf_syscall.c.patch
+[1;36m[bpf][0m apply kernel_bpf_sysfs_btf.c.patch
+[1;36m[bpf][0m apply kernel_bpf_task_iter.c.patch
+[1;36m[bpf][0m apply kernel_bpf_tnum.c.patch
+[1;36m[bpf][0m apply kernel_bpf_trampoline.c.patch
+[1;36m[bpf][0m apply kernel_bpf_verifier.c.patch
+[1;36m[bpf][0m apply kernel_trace_bpf_trace.c.patch
+[1;36m[bpf][0m apply net_core_filter.c.patch
+[1;36m[bpf][0m apply net_core_sock.c.patch
+[1;36m[bpf][0m apply net_core_sock_map.c.patch
+[1;36m[bpf][0m 应用结果: 成功 81 / 失败 0
+[1;32m[ ok ][0m patch 集合应用完成 (81 个)
+[1;36m[bpf][0m BTF 配置稍后由 build.sh 统一设置 (当前阶段 .config 尚未生成)
+[1;32m[ ok ][0m BPF 回合阶段完成
+[1;36m[bpf][0m BPF 能力现状：
+  sockmap/sk_msg : YES
+  BTF verifier   : NO
+  sys_clone3     : YES
+[1;32m[ ok ][0m BPF 回合完成
+[1;32m[ ok ][0m BPF 源码回合完成, config 稍后统一设置
+[1;36m[build][0m [5/7] 伪装 uname 为 5.4.186
+[1;36m[uname][0m 注入 uname 伪装 (仅对 bpfloader/netbpfload/netd)
+  patched OK (inserted after line 1193)
+[1;32m[ ok ][0m kernel/sys.c 已注入伪装逻辑
+[1;32m[ ok ][0m cezanne_user_defconfig 已开启 FAKE_UNAME
+[1;32m[ ok ][0m 验证: 伪装代码已就位 (5.4.186)
+[1;36m[uname][0m 注入片段:
+      1196:	/* FAKE_UNAME_FOR_BPF: A16+ 的 netbpfload/bpfloader/netd 会检查
+      1197-	 * uname -r 的主版本号, 低于 5.4 就拒绝加载 BPF 程序。
+      1198-	 * 这里只对这三个进程伪装版本号, 其他进程看到的仍是真实版本串,
+      1199-	 * 不影响原厂 vendor .ko 的 vermagic (符号 CRC) 校验。
+      1200-	 * 参考: mt6873-dev commit 4a452bec7f22
+      1201-	 */
+      1202-	if (!strncmp(current->comm, "bpfloader", 9) ||
+      1203-	    !strncmp(current->comm, "netbpfload", 10) ||
+      1204-	    !strncmp(current->comm, "netd", 4)) {
+[1;32m[ ok ][0m uname 伪装完成
+[1;36m[build][0m [6/7] 跳过 KernelSU
+[1;36m[build][0m [7/7] 编译内核
+grep: .config: No such file or directory
+grep: .config: No such file or directory
+grep: .config: No such file or directory
+grep: .config: No such file or directory
+grep: .config: No such file or directory
+grep: .config: No such file or directory
+grep: .config: No such file or directory
+grep: .config: No such file or directory
+.
+.
+.
+.
+.
+drivers/misc/mediatek/ccu/src/Makefile:25: CCU_MAKE_FILE_CALLED
+************  drivers/trusty/mtee-kree mk ************
+MTK_GPU_VERSION 1 = 
+TCORE_UT_TESTS_SUPPORT = n
+TCORE_PROFILING_SUPPORT = n
+TCORE_PROFILING_AUTO_DUMP = n
+TCORE_MEMORY_LEAK_DETECTION_SUPPORT = n
+[1;36m[build][0m     使用 defconfig: cezanne_user_defconfig
+make[1]: Entering directory '/home/runner/work/kernel-bpf/kernel-bpf/out'
+  HOSTCC  scripts/basic/fixdep
+  GEN     ./Makefile
+  HOSTCC  scripts/kconfig/conf.o
+  SHIPPED scripts/kconfig/zconf.tab.c
+  SHIPPED scripts/kconfig/zconf.lex.c
+  HOSTCC  scripts/kconfig/zconf.tab.o
+  HOSTLD  scripts/kconfig/conf
+drivers/misc/mediatek/nfc/Kconfig:22:warning: ignoring type redefinition of 'MTK_NFC_CLKBUF_ENABLE' from 'boolean' to 'tristate'
+#
+# configuration written to .config
+#
+make[1]: Leaving directory '/home/runner/work/kernel-bpf/kernel-bpf/out'
+[1;36m[build][0m     移除内核源码中的 -Werror (GCC 比 clang 严格)...
+[1;32m[ ok ][0m 顶层 Makefile: -Werror 出现次数 7 -> 0
+0
+      137:# cc-disable-warning
+      138:# Usage: cflags-y += $(call cc-disable-warning,unused-but-set-variable)
+[1;36m[build][0m     设置内核选项...
+[1;32m[ ok ][0m 已关闭栈保护 (STRONG/REGULAR/总开关), 规避 compiler-check 探测失败
+[1;32m[ ok ][0m 已关闭 CONFIG_BLK_INLINE_ENCRYPTION (规避 GCC inline 语义冲突)
+[1;32m[ ok ][0m ti_cezanne/Makefile 已豁免 -mgeneral-regs-only
+[1;36m[build][0m     修正 extern inline 声明 (GCC inline 语义)
+        [头] arch/alpha/include/asm/io.h: extern inline -> extern  (readb) x1
+        [头] arch/alpha/include/asm/io.h: extern inline -> extern  (readw) x1
+        [头] arch/alpha/include/asm/io.h: extern inline -> extern  (writeb) x1
+        [头] arch/alpha/include/asm/io.h: extern inline -> extern  (writew) x1
+        [头] arch/alpha/include/asm/io.h: extern inline -> extern  (__raw_readl) x1
+        [头] arch/alpha/include/asm/io.h: extern inline -> extern  (__raw_readq) x1
+        [头] arch/alpha/include/asm/io.h: extern inline -> extern  (__raw_writel) x1
+        [头] arch/alpha/include/asm/io.h: extern inline -> extern  (__raw_writeq) x1
+        [头] arch/alpha/include/asm/io.h: extern inline -> extern  (readl) x1
+        [头] arch/alpha/include/asm/io.h: extern inline -> extern  (readq) x1
+        [头] arch/alpha/include/asm/io.h: extern inline -> extern  (writel) x1
+        [头] arch/alpha/include/asm/io.h: extern inline -> extern  (writeq) x1
+        [头] arch/m68k/include/asm/mcf_pgalloc.h: extern inline -> extern  (pte_free_kernel) x1
+        [头] arch/m68k/include/asm/mcf_pgalloc.h: extern inline -> extern  (pte_alloc_one_kernel) x1
+        [头] arch/blackfin/include/asm/ftrace.h: extern inline -> extern  (return_address) x2
+        [头] arch/openrisc/include/asm/pgalloc.h: extern inline -> extern  (pgd_alloc) x1
+        [头] arch/powerpc/include/asm/xive.h: extern inline -> extern  (xive_smp_prepare_cpu) x1
+        [源] drivers/misc/mediatek/typec/tcpc_cezanne/tcpci_typec.c: inline -> 普通定义  (typec_pd_start_entry) x1
+      
+      完成: 头文件 47 处, 源文件 1 处
+[1;32m[ ok ][0m extern inline 修正完成
+[1;32m[ ok ][0m net/core/Makefile 已加入 sock_map.o
+[1;32m[ ok ][0m 内核选项已设置 (MODVERSIONS/FHANDLE/EROFS/BPF/BTF/CGROUP)
+[1;36m[build][0m     跳过屏幕控制台 (enable_fbcon=未设置)
+[1;36m[build][0m 对齐 kernel-release (原厂要求 4.14.186-perf-00252-g2f26b5917fd6)
+[1;32m[ ok ][0m CONFIG_LOCALVERSION_AUTO=off, CONFIG_LOCALVERSION="" (后缀只由 make 命令行注入一次)
+[1;36m[build][0m 预检 kernel-release = 4.14.186-perf-00252-g2f26b5917fd6
+[1;32m[ ok ][0m 版本串预检通过 ✓ (4.14.186-perf-00252-g2f26b5917fd6)
+make[1]: Entering directory '/home/runner/work/kernel-bpf/kernel-bpf/out'
+  CHK     include/config/kernel.release
+  GEN     ./Makefile
+  WRAP    arch/arm64/include/generated/uapi/asm/errno.h
+  WRAP    arch/arm64/include/generated/uapi/asm/ioctl.h
+  WRAP    arch/arm64/include/generated/uapi/asm/ioctls.h
+  CHK     include/generated/uapi/linux/version.h
+  WRAP    arch/arm64/include/generated/uapi/asm/ipcbuf.h
+  WRAP    arch/arm64/include/generated/uapi/asm/kvm_para.h
+  UPD     include/generated/uapi/linux/version.h
+  WRAP    arch/arm64/include/generated/uapi/asm/mman.h
+  WRAP    arch/arm64/include/generated/uapi/asm/msgbuf.h
+  WRAP    arch/arm64/include/generated/uapi/asm/poll.h
+  WRAP    arch/arm64/include/generated/uapi/asm/resource.h
+  WRAP    arch/arm64/include/generated/uapi/asm/shmbuf.h
+  WRAP    arch/arm64/include/generated/uapi/asm/sembuf.h
+  WRAP    arch/arm64/include/generated/uapi/asm/socket.h
+  WRAP    arch/arm64/include/generated/uapi/asm/sockios.h
+  WRAP    arch/arm64/include/generated/uapi/asm/swab.h
+  WRAP    arch/arm64/include/generated/uapi/asm/termbits.h
+  WRAP    arch/arm64/include/generated/uapi/asm/termios.h
+  WRAP    arch/arm64/include/generated/uapi/asm/types.h
+  CHK     include/generated/utsrelease.h
+  UPD     include/generated/utsrelease.h
+  HOSTCC  scripts/basic/fixdep
+  HOSTCC  scripts/basic/bin2c
+  Using /home/runner/work/kernel-bpf/kernel-bpf/kernel as source for kernel
+  WRAP    arch/arm64/include/generated/asm/bugs.h
+  WRAP    arch/arm64/include/generated/asm/clkdev.h
+  WRAP    arch/arm64/include/generated/asm/delay.h
+  WRAP    arch/arm64/include/generated/asm/div64.h
+  WRAP    arch/arm64/include/generated/asm/dma.h
+  WRAP    arch/arm64/include/generated/asm/dma-contiguous.h
+  WRAP    arch/arm64/include/generated/asm/early_ioremap.h
+  WRAP    arch/arm64/include/generated/asm/emergency-restart.h
+  WRAP    arch/arm64/include/generated/asm/hw_irq.h
+  WRAP    arch/arm64/include/generated/asm/irq_regs.h
+  WRAP    arch/arm64/include/generated/asm/kdebug.h
+  WRAP    arch/arm64/include/generated/asm/kmap_types.h
+  WRAP    arch/arm64/include/generated/asm/local.h
+  WRAP    arch/arm64/include/generated/asm/local64.h
+  WRAP    arch/arm64/include/generated/asm/mcs_spinlock.h
+  WRAP    arch/arm64/include/generated/asm/mm-arch-hooks.h
+  WRAP    arch/arm64/include/generated/asm/msi.h
+  WRAP    arch/arm64/include/generated/asm/preempt.h
+  WRAP    arch/arm64/include/generated/asm/rwsem.h
+  WRAP    arch/arm64/include/generated/asm/segment.h
+  WRAP    arch/arm64/include/generated/asm/serial.h
+  WRAP    arch/arm64/include/generated/asm/set_memory.h
+  WRAP    arch/arm64/include/generated/asm/sizes.h
+  WRAP    arch/arm64/include/generated/asm/switch_to.h
+  WRAP    arch/arm64/include/generated/asm/trace_clock.h
+  WRAP    arch/arm64/include/generated/asm/unaligned.h
+  WRAP    arch/arm64/include/generated/asm/user.h
+  WRAP    arch/arm64/include/generated/asm/vga.h
+  WRAP    arch/arm64/include/generated/asm/xor.h
+  HOSTCC  scripts/dtc/dtc.o
+  HOSTCC  scripts/genksyms/genksyms.o
+  CC      scripts/mod/empty.o
+  HOSTCC  scripts/selinux/genheaders/genheaders
+  HOSTCC  scripts/mod/mk_elfconfig
+  CC      scripts/mod/devicetable-offsets.s
+  HOSTCC  scripts/dtc/flattree.o
+  MKELF   scripts/mod/elfconfig.h
+  HOSTCC  scripts/selinux/mdp/mdp
+  CHK     scripts/mod/devicetable-offsets.h
+  UPD     scripts/mod/devicetable-offsets.h
+  HOSTCC  scripts/mod/sumversion.o
+  SHIPPED scripts/genksyms/parse.tab.c
+  SHIPPED scripts/genksyms/lex.lex.c
+  SHIPPED scripts/genksyms/parse.tab.h
+  HOSTCC  scripts/genksyms/parse.tab.o
+  HOSTCC  scripts/dtc/fstree.o
+  HOSTCC  scripts/genksyms/lex.lex.o
+  HOSTCC  scripts/mod/modpost.o
+  HOSTCC  scripts/dtc/data.o
+  HOSTCC  scripts/mod/file2alias.o
+  HOSTCC  scripts/dtc/livetree.o
+  HOSTLD  scripts/genksyms/genksyms
+  HOSTCC  scripts/dtc/treesource.o
+  HOSTCC  scripts/kallsyms
+  HOSTCC  scripts/dtc/srcpos.o
+  HOSTLD  scripts/mod/modpost
+  HOSTCC  scripts/dtc/checks.o
+  HOSTCC  scripts/dtc/util.o
+  SHIPPED scripts/dtc/dtc-lexer.lex.c
+  SHIPPED scripts/dtc/dtc-parser.tab.h
+  SHIPPED scripts/dtc/dtc-parser.tab.c
+  HOSTCC  scripts/dtc/dtc-lexer.lex.o
+  HOSTCC  scripts/pnmtologo
+  HOSTCC  scripts/sortextable
+  HOSTCC  scripts/asn1_compiler
+  HOSTCC  scripts/dtc/dtc-parser.tab.o
+  HOSTCC  scripts/extract-cert
+  HOSTLD  scripts/dtc/dtc
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/scripts/extract-cert.c: In function ‘display_openssl_errors’:
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/scripts/extract-cert.c:46:9: warning: ‘ERR_get_error_line’ is deprecated: Since OpenSSL 3.0 [-Wdeprecated-declarations]
+   46 |         while ((e = ERR_get_error_line(&file, &line))) {
+      |         ^~~~~
+In file included from /home/runner/work/kernel-bpf/kernel-bpf/kernel/scripts/extract-cert.c:23:
+/usr/include/openssl/err.h:411:15: note: declared here
+  411 | unsigned long ERR_get_error_line(const char **file, int *line);
+      |               ^~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/scripts/extract-cert.c: In function ‘drain_openssl_errors’:
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/scripts/extract-cert.c:59:9: warning: ‘ERR_get_error_line’ is deprecated: Since OpenSSL 3.0 [-Wdeprecated-declarations]
+   59 |         while (ERR_get_error_line(&file, &line)) {}
+      |         ^~~~~
+In file included from /home/runner/work/kernel-bpf/kernel-bpf/kernel/scripts/extract-cert.c:23:
+/usr/include/openssl/err.h:411:15: note: declared here
+  411 | unsigned long ERR_get_error_line(const char **file, int *line);
+      |               ^~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/scripts/extract-cert.c: In function ‘main’:
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/scripts/extract-cert.c:124:17: warning: ‘ENGINE_load_builtin_engines’ is deprecated: Since OpenSSL 3.0 [-Wdeprecated-declarations]
+  124 |                 ENGINE_load_builtin_engines();
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /home/runner/work/kernel-bpf/kernel-bpf/kernel/scripts/extract-cert.c:24:
+/usr/include/openssl/engine.h:358:28: note: declared here
+  358 | OSSL_DEPRECATEDIN_3_0 void ENGINE_load_builtin_engines(void);
+      |                            ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/scripts/extract-cert.c:126:17: warning: ‘ENGINE_by_id’ is deprecated: Since OpenSSL 3.0 [-Wdeprecated-declarations]
+  126 |                 e = ENGINE_by_id("pkcs11");
+      |                 ^
+In file included from /home/runner/work/kernel-bpf/kernel-bpf/kernel/scripts/extract-cert.c:24:
+/usr/include/openssl/engine.h:336:31: note: declared here
+  336 | OSSL_DEPRECATEDIN_3_0 ENGINE *ENGINE_by_id(const char *id);
+      |                               ^~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/scripts/extract-cert.c:128:17: warning: ‘ENGINE_init’ is deprecated: Since OpenSSL 3.0 [-Wdeprecated-declarations]
+  128 |                 if (ENGINE_init(e))
+      |                 ^~
+In file included from /home/runner/work/kernel-bpf/kernel-bpf/kernel/scripts/extract-cert.c:24:
+/usr/include/openssl/engine.h:620:27: note: declared here
+  620 | OSSL_DEPRECATEDIN_3_0 int ENGINE_init(ENGINE *e);
+      |                           ^~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/scripts/extract-cert.c:133:25: warning: ‘ENGINE_ctrl_cmd_string’ is deprecated: Since OpenSSL 3.0 [-Wdeprecated-declarations]
+  133 |                         ERR(!ENGINE_ctrl_cmd_string(e, "PIN", key_pass, 0), "Set PKCS#11 PIN");
+      |                         ^~~
+In file included from /home/runner/work/kernel-bpf/kernel-bpf/kernel/scripts/extract-cert.c:24:
+/usr/include/openssl/engine.h:479:5: note: declared here
+  479 | int ENGINE_ctrl_cmd_string(ENGINE *e, const char *cmd_name, const char *arg,
+      |     ^~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/scripts/extract-cert.c:134:17: warning: ‘ENGINE_ctrl_cmd’ is deprecated: Since OpenSSL 3.0 [-Wdeprecated-declarations]
+  134 |                 ENGINE_ctrl_cmd(e, "LOAD_CERT_CTRL", 0, &parms, NULL, 1);
+      |                 ^~~~~~~~~~~~~~~
+In file included from /home/runner/work/kernel-bpf/kernel-bpf/kernel/scripts/extract-cert.c:24:
+/usr/include/openssl/engine.h:450:27: note: declared here
+  450 | OSSL_DEPRECATEDIN_3_0 int ENGINE_ctrl_cmd(ENGINE *e, const char *cmd_name,
+      |                           ^~~~~~~~~~~~~~~
+  CHK     include/generated/timeconst.h
+  CC      kernel/bounds.s
+  UPD     include/generated/timeconst.h
+  CHK     include/generated/bounds.h
+  UPD     include/generated/bounds.h
+  CC      arch/arm64/kernel/asm-offsets.s
+  CHK     include/generated/asm-offsets.h
+  UPD     include/generated/asm-offsets.h
+  CALL    /home/runner/work/kernel-bpf/kernel-bpf/kernel/scripts/checksyscalls.sh
+  LDS     arch/arm64/kernel/vdso/vdso.lds
+  VDSOA   arch/arm64/kernel/vdso/gettimeofday.o
+  VDSOA   arch/arm64/kernel/vdso/note.o
+  VDSOA   arch/arm64/kernel/vdso/sigreturn.o
+  LD      arch/arm64/kernel/vdso/vdso.so.dbg
+  VDSOSYM include/generated/vdso-offsets.h
+  CC      init/main.o
+  HOSTCC  usr/gen_init_cpio
+  CC      arch/arm64/mm/dma-mapping.o
+  CC      arch/arm64/kernel/debug-monitors.o
+  GEN     usr/initramfs_data.cpio
+  AS      usr/initramfs_data.o
+  AR      usr/built-in.o
+  AS      arch/arm64/kernel/entry.o
+  CHK     include/generated/compile.h
+  UPD     include/generated/compile.h
+  CC      arch/arm64/kernel/irq.o
+  CC      arch/arm64/mm/extable.o
+  CC      arch/arm64/kernel/fpsimd.o
+  CC      arch/arm64/net/bpf_jit_comp.o
+  CC      arch/arm64/mm/fault.o
+  CC      init/do_mounts.o
+  AS      arch/arm64/kernel/entry-fpsimd.o
+  CC      arch/arm64/kernel/process.o
+In file included from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/list.h:9,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/timer.h:5,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/workqueue.h:9,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/bpf.h:12,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/arch/arm64/net/bpf_jit_comp.c:21:
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h: In function ‘bpf_prog_tag_scratch_size’:
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:852:45: error: ‘SHA1_BLOCK_SIZE’ undeclared (first use in this function); did you mean ‘SWAPPER_BLOCK_SIZE’?
+  852 |                         sizeof(__be64) + 1, SHA1_BLOCK_SIZE);
+      |                                             ^~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/kernel.h:86:46: note: in definition of macro ‘__round_mask’
+   86 | #define __round_mask(x, y) ((__typeof__(x))((y)-1))
+      |                                              ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:851:16: note: in expansion of macro ‘round_up’
+  851 |         return round_up(bpf_prog_insn_size(prog) +
+      |                ^~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:852:45: note: each undeclared identifier is reported only once for each function it appears in
+  852 |                         sizeof(__be64) + 1, SHA1_BLOCK_SIZE);
+      |                                             ^~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/kernel.h:86:46: note: in definition of macro ‘__round_mask’
+   86 | #define __round_mask(x, y) ((__typeof__(x))((y)-1))
+      |                                              ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:851:16: note: in expansion of macro ‘round_up’
+  851 |         return round_up(bpf_prog_insn_size(prog) +
+      |                ^~~~~~~~
+In file included from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rbtree.h:34,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rbtree_latch.h:36,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/bpf.h:16,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/arch/arm64/net/bpf_jit_comp.c:21:
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h: In function ‘bpf_sk_lookup_run_v4’:
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:40: error: ‘struct net’ has no member named ‘bpf’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                                        ^~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:347:17: note: in definition of macro ‘__rcu_dereference_check’
+  347 |         typeof(*p) *________p1 = (typeof(*p) *__force)READ_ONCE(p); \
+      |                 ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:543:28: note: in expansion of macro ‘rcu_dereference_check’
+  543 | #define rcu_dereference(p) rcu_dereference_check(p, 0)
+      |                            ^~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:21: note: in expansion of macro ‘rcu_dereference’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                     ^~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:56: error: ‘NETNS_BPF_SK_LOOKUP’ undeclared (first use in this function); did you mean ‘BPF_SK_LOOKUP’?
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                                                        ^~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:347:17: note: in definition of macro ‘__rcu_dereference_check’
+  347 |         typeof(*p) *________p1 = (typeof(*p) *__force)READ_ONCE(p); \
+      |                 ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:543:28: note: in expansion of macro ‘rcu_dereference_check’
+  543 | #define rcu_dereference(p) rcu_dereference_check(p, 0)
+      |                            ^~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:21: note: in expansion of macro ‘rcu_dereference’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                     ^~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:40: error: ‘struct net’ has no member named ‘bpf’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                                        ^~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:347:43: note: in definition of macro ‘__rcu_dereference_check’
+  347 |         typeof(*p) *________p1 = (typeof(*p) *__force)READ_ONCE(p); \
+      |                                           ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:543:28: note: in expansion of macro ‘rcu_dereference_check’
+  543 | #define rcu_dereference(p) rcu_dereference_check(p, 0)
+      |                            ^~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:21: note: in expansion of macro ‘rcu_dereference’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                     ^~~~~~~~~~~~~~~
+In file included from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/kernel.h:10,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/list.h:9,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/timer.h:5,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/workqueue.h:9,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/bpf.h:12,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/arch/arm64/net/bpf_jit_comp.c:21:
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:40: error: ‘struct net’ has no member named ‘bpf’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                                        ^~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/compiler.h:245:24: note: in definition of macro ‘__READ_ONCE’
+  245 |         union { typeof(x) __val; char __c[1]; } __u;                    \
+      |                        ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:347:55: note: in expansion of macro ‘READ_ONCE’
+  347 |         typeof(*p) *________p1 = (typeof(*p) *__force)READ_ONCE(p); \
+      |                                                       ^~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:484:9: note: in expansion of macro ‘__rcu_dereference_check’
+  484 |         __rcu_dereference_check((p), (c) || rcu_read_lock_held(), __rcu)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:543:28: note: in expansion of macro ‘rcu_dereference_check’
+  543 | #define rcu_dereference(p) rcu_dereference_check(p, 0)
+      |                            ^~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:21: note: in expansion of macro ‘rcu_dereference’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                     ^~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:40: error: ‘struct net’ has no member named ‘bpf’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                                        ^~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/compiler.h:247:36: note: in definition of macro ‘__READ_ONCE’
+  247 |                 __read_once_size(&(x), __u.__c, sizeof(x));             \
+      |                                    ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:347:55: note: in expansion of macro ‘READ_ONCE’
+  347 |         typeof(*p) *________p1 = (typeof(*p) *__force)READ_ONCE(p); \
+      |                                                       ^~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:484:9: note: in expansion of macro ‘__rcu_dereference_check’
+  484 |         __rcu_dereference_check((p), (c) || rcu_read_lock_held(), __rcu)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:543:28: note: in expansion of macro ‘rcu_dereference_check’
+  543 | #define rcu_dereference(p) rcu_dereference_check(p, 0)
+      |                            ^~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:21: note: in expansion of macro ‘rcu_dereference’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                     ^~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:40: error: ‘struct net’ has no member named ‘bpf’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                                        ^~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/compiler.h:247:56: note: in definition of macro ‘__READ_ONCE’
+  247 |                 __read_once_size(&(x), __u.__c, sizeof(x));             \
+      |                                                        ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:347:55: note: in expansion of macro ‘READ_ONCE’
+  347 |         typeof(*p) *________p1 = (typeof(*p) *__force)READ_ONCE(p); \
+      |                                                       ^~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:484:9: note: in expansion of macro ‘__rcu_dereference_check’
+  484 |         __rcu_dereference_check((p), (c) || rcu_read_lock_held(), __rcu)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:543:28: note: in expansion of macro ‘rcu_dereference_check’
+  543 | #define rcu_dereference(p) rcu_dereference_check(p, 0)
+      |                            ^~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:21: note: in expansion of macro ‘rcu_dereference’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                     ^~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:40: error: ‘struct net’ has no member named ‘bpf’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                                        ^~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/compiler.h:249:44: note: in definition of macro ‘__READ_ONCE’
+  249 |                 __read_once_size_nocheck(&(x), __u.__c, sizeof(x));     \
+      |                                            ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:347:55: note: in expansion of macro ‘READ_ONCE’
+  347 |         typeof(*p) *________p1 = (typeof(*p) *__force)READ_ONCE(p); \
+      |                                                       ^~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:484:9: note: in expansion of macro ‘__rcu_dereference_check’
+  484 |         __rcu_dereference_check((p), (c) || rcu_read_lock_held(), __rcu)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:543:28: note: in expansion of macro ‘rcu_dereference_check’
+  543 | #define rcu_dereference(p) rcu_dereference_check(p, 0)
+      |                            ^~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:21: note: in expansion of macro ‘rcu_dereference’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                     ^~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:40: error: ‘struct net’ has no member named ‘bpf’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                                        ^~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/compiler.h:249:64: note: in definition of macro ‘__READ_ONCE’
+  249 |                 __read_once_size_nocheck(&(x), __u.__c, sizeof(x));     \
+      |                                                                ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:347:55: note: in expansion of macro ‘READ_ONCE’
+  347 |         typeof(*p) *________p1 = (typeof(*p) *__force)READ_ONCE(p); \
+      |                                                       ^~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:484:9: note: in expansion of macro ‘__rcu_dereference_check’
+  484 |         __rcu_dereference_check((p), (c) || rcu_read_lock_held(), __rcu)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:543:28: note: in expansion of macro ‘rcu_dereference_check’
+  543 | #define rcu_dereference(p) rcu_dereference_check(p, 0)
+      |                            ^~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:21: note: in expansion of macro ‘rcu_dereference’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                     ^~~~~~~~~~~~~~~
+In file included from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rbtree.h:34,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rbtree_latch.h:36,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/bpf.h:16,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/arch/arm64/net/bpf_jit_comp.c:21:
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:40: error: ‘struct net’ has no member named ‘bpf’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                                        ^~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:350:19: note: in definition of macro ‘__rcu_dereference_check’
+  350 |         ((typeof(*p) __force __kernel *)(________p1)); \
+      |                   ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:543:28: note: in expansion of macro ‘rcu_dereference_check’
+  543 | #define rcu_dereference(p) rcu_dereference_check(p, 0)
+      |                            ^~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:21: note: in expansion of macro ‘rcu_dereference’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                     ^~~~~~~~~~~~~~~
+make[2]: *** [/home/runner/work/kernel-bpf/kernel-bpf/kernel/scripts/Makefile.build:357: arch/arm64/net/bpf_jit_comp.o] Error 1
+make[1]: *** [/home/runner/work/kernel-bpf/kernel-bpf/kernel/Makefile:1163: arch/arm64/net] Error 2
+make[1]: *** Waiting for unfinished jobs....
+  CC      arch/arm64/kernel/ptrace.o
+  CC      arch/arm64/mm/init.o
+In file included from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/list.h:9,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/module.h:9,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/init/do_mounts.c:11:
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h: In function ‘bpf_prog_tag_scratch_size’:
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:852:45: error: ‘SHA1_BLOCK_SIZE’ undeclared (first use in this function); did you mean ‘SWAPPER_BLOCK_SIZE’?
+  852 |                         sizeof(__be64) + 1, SHA1_BLOCK_SIZE);
+      |                                             ^~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/kernel.h:86:46: note: in definition of macro ‘__round_mask’
+   86 | #define __round_mask(x, y) ((__typeof__(x))((y)-1))
+      |                                              ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:851:16: note: in expansion of macro ‘round_up’
+  851 |         return round_up(bpf_prog_insn_size(prog) +
+      |                ^~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:852:45: note: each undeclared identifier is reported only once for each function it appears in
+  852 |                         sizeof(__be64) + 1, SHA1_BLOCK_SIZE);
+      |                                             ^~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/kernel.h:86:46: note: in definition of macro ‘__round_mask’
+   86 | #define __round_mask(x, y) ((__typeof__(x))((y)-1))
+      |                                              ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:851:16: note: in expansion of macro ‘round_up’
+  851 |         return round_up(bpf_prog_insn_size(prog) +
+      |                ^~~~~~~~
+In file included from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rculist.h:11,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/pid.h:5,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/sched.h:14,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/arch/arm64/include/asm/compat.h:25,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/arch/arm64/include/asm/stat.h:23,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/stat.h:6,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/module.h:10,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/init/do_mounts.c:11:
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h: In function ‘bpf_sk_lookup_run_v4’:
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:40: error: ‘struct net’ has no member named ‘bpf’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                                        ^~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:347:17: note: in definition of macro ‘__rcu_dereference_check’
+  347 |         typeof(*p) *________p1 = (typeof(*p) *__force)READ_ONCE(p); \
+      |                 ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:543:28: note: in expansion of macro ‘rcu_dereference_check’
+  543 | #define rcu_dereference(p) rcu_dereference_check(p, 0)
+      |                            ^~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:21: note: in expansion of macro ‘rcu_dereference’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                     ^~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:56: error: ‘NETNS_BPF_SK_LOOKUP’ undeclared (first use in this function); did you mean ‘BPF_SK_LOOKUP’?
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                                                        ^~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:347:17: note: in definition of macro ‘__rcu_dereference_check’
+  347 |         typeof(*p) *________p1 = (typeof(*p) *__force)READ_ONCE(p); \
+      |                 ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:543:28: note: in expansion of macro ‘rcu_dereference_check’
+  543 | #define rcu_dereference(p) rcu_dereference_check(p, 0)
+      |                            ^~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:21: note: in expansion of macro ‘rcu_dereference’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                     ^~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:40: error: ‘struct net’ has no member named ‘bpf’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                                        ^~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:347:43: note: in definition of macro ‘__rcu_dereference_check’
+  347 |         typeof(*p) *________p1 = (typeof(*p) *__force)READ_ONCE(p); \
+      |                                           ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:543:28: note: in expansion of macro ‘rcu_dereference_check’
+  543 | #define rcu_dereference(p) rcu_dereference_check(p, 0)
+      |                            ^~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:21: note: in expansion of macro ‘rcu_dereference’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                     ^~~~~~~~~~~~~~~
+In file included from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/kernel.h:10,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/list.h:9,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/module.h:9,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/init/do_mounts.c:11:
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:40: error: ‘struct net’ has no member named ‘bpf’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                                        ^~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/compiler.h:245:24: note: in definition of macro ‘__READ_ONCE’
+  245 |         union { typeof(x) __val; char __c[1]; } __u;                    \
+      |                        ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:347:55: note: in expansion of macro ‘READ_ONCE’
+  347 |         typeof(*p) *________p1 = (typeof(*p) *__force)READ_ONCE(p); \
+      |                                                       ^~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:484:9: note: in expansion of macro ‘__rcu_dereference_check’
+  484 |         __rcu_dereference_check((p), (c) || rcu_read_lock_held(), __rcu)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:543:28: note: in expansion of macro ‘rcu_dereference_check’
+  543 | #define rcu_dereference(p) rcu_dereference_check(p, 0)
+      |                            ^~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:21: note: in expansion of macro ‘rcu_dereference’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                     ^~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:40: error: ‘struct net’ has no member named ‘bpf’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                                        ^~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/compiler.h:247:36: note: in definition of macro ‘__READ_ONCE’
+  247 |                 __read_once_size(&(x), __u.__c, sizeof(x));             \
+      |                                    ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:347:55: note: in expansion of macro ‘READ_ONCE’
+  347 |         typeof(*p) *________p1 = (typeof(*p) *__force)READ_ONCE(p); \
+      |                                                       ^~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:484:9: note: in expansion of macro ‘__rcu_dereference_check’
+  484 |         __rcu_dereference_check((p), (c) || rcu_read_lock_held(), __rcu)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:543:28: note: in expansion of macro ‘rcu_dereference_check’
+  543 | #define rcu_dereference(p) rcu_dereference_check(p, 0)
+      |                            ^~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:21: note: in expansion of macro ‘rcu_dereference’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                     ^~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:40: error: ‘struct net’ has no member named ‘bpf’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                                        ^~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/compiler.h:247:56: note: in definition of macro ‘__READ_ONCE’
+  247 |                 __read_once_size(&(x), __u.__c, sizeof(x));             \
+      |                                                        ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:347:55: note: in expansion of macro ‘READ_ONCE’
+  347 |         typeof(*p) *________p1 = (typeof(*p) *__force)READ_ONCE(p); \
+      |                                                       ^~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:484:9: note: in expansion of macro ‘__rcu_dereference_check’
+  484 |         __rcu_dereference_check((p), (c) || rcu_read_lock_held(), __rcu)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:543:28: note: in expansion of macro ‘rcu_dereference_check’
+  543 | #define rcu_dereference(p) rcu_dereference_check(p, 0)
+      |                            ^~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:21: note: in expansion of macro ‘rcu_dereference’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                     ^~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:40: error: ‘struct net’ has no member named ‘bpf’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                                        ^~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/compiler.h:249:44: note: in definition of macro ‘__READ_ONCE’
+  249 |                 __read_once_size_nocheck(&(x), __u.__c, sizeof(x));     \
+      |                                            ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:347:55: note: in expansion of macro ‘READ_ONCE’
+  347 |         typeof(*p) *________p1 = (typeof(*p) *__force)READ_ONCE(p); \
+      |                                                       ^~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:484:9: note: in expansion of macro ‘__rcu_dereference_check’
+  484 |         __rcu_dereference_check((p), (c) || rcu_read_lock_held(), __rcu)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:543:28: note: in expansion of macro ‘rcu_dereference_check’
+  543 | #define rcu_dereference(p) rcu_dereference_check(p, 0)
+      |                            ^~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:21: note: in expansion of macro ‘rcu_dereference’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                     ^~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:40: error: ‘struct net’ has no member named ‘bpf’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                                        ^~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/compiler.h:249:64: note: in definition of macro ‘__READ_ONCE’
+  249 |                 __read_once_size_nocheck(&(x), __u.__c, sizeof(x));     \
+      |                                                                ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:347:55: note: in expansion of macro ‘READ_ONCE’
+  347 |         typeof(*p) *________p1 = (typeof(*p) *__force)READ_ONCE(p); \
+      |                                                       ^~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:484:9: note: in expansion of macro ‘__rcu_dereference_check’
+  484 |         __rcu_dereference_check((p), (c) || rcu_read_lock_held(), __rcu)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:543:28: note: in expansion of macro ‘rcu_dereference_check’
+  543 | #define rcu_dereference(p) rcu_dereference_check(p, 0)
+      |                            ^~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:21: note: in expansion of macro ‘rcu_dereference’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                     ^~~~~~~~~~~~~~~
+In file included from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rculist.h:11,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/pid.h:5,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/sched.h:14,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/arch/arm64/include/asm/compat.h:25,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/arch/arm64/include/asm/stat.h:23,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/stat.h:6,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/module.h:10,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/init/do_mounts.c:11:
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:40: error: ‘struct net’ has no member named ‘bpf’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                                        ^~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:350:19: note: in definition of macro ‘__rcu_dereference_check’
+  350 |         ((typeof(*p) __force __kernel *)(________p1)); \
+      |                   ^
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/rcupdate.h:543:28: note: in expansion of macro ‘rcu_dereference_check’
+  543 | #define rcu_dereference(p) rcu_dereference_check(p, 0)
+      |                            ^~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/filter.h:1465:21: note: in expansion of macro ‘rcu_dereference’
+ 1465 |         run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
+      |                     ^~~~~~~~~~~~~~~
+In file included from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/tcp.h:23,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/ipv6.h:87,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/net/ipv6.h:16,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/sunrpc/clnt.h:28,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/include/linux/nfs_fs.h:31,
+                 from /home/runner/work/kernel-bpf/kernel-bpf/kernel/init/do_mounts.c:32:
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/net/sock.h: In function ‘dst_negative_advice’:
+/home/runner/work/kernel-bpf/kernel-bpf/kernel/include/net/sock.h:1897:17: error: too many arguments to function ‘dst->ops->negative_advice’
+ 1897 |                 dst->ops->negative_advice(sk, dst);
+      |                 ^~~
+make[2]: *** [/home/runner/work/kernel-bpf/kernel-bpf/kernel/scripts/Makefile.build:356: init/do_mounts.o] Error 1
+make[1]: *** [/home/runner/work/kernel-bpf/kernel-bpf/kernel/Makefile:1163: init] Error 2
+  AS      arch/arm64/mm/cache.o
+  CC      arch/arm64/kernel/setup.o
+  CC      arch/arm64/kernel/signal.o
+  CC      arch/arm64/mm/copypage.o
+  CC      arch/arm64/kernel/sys.o
+  CC      arch/arm64/kernel/stacktrace.o
+  CC      arch/arm64/mm/flush.o
+  CC      arch/arm64/mm/ioremap.o
+  CC      arch/arm64/kernel/time.o
+  CC      arch/arm64/mm/mmap.o
+  CC      arch/arm64/kernel/traps.o
+  CC      arch/arm64/kernel/io.o
+  CC      arch/arm64/mm/pgd.o
+  CC      arch/arm64/kernel/vdso.o
+  CC      arch/arm64/mm/mmu.o
+  AS      arch/arm64/kernel/hyp-stub.o
+  CC      arch/arm64/mm/context.o
+  CC      arch/arm64/kernel/psci.o
+  AS      arch/arm64/mm/proc.o
+  CC      arch/arm64/kernel/cpu_ops.o
+  CC      arch/arm64/kernel/insn.o
+  CC      arch/arm64/mm/pageattr.o
+  CC      arch/arm64/kernel/return_address.o
+  AS      arch/arm64/mm/cache-mtk-v8.o
+  CC      arch/arm64/kernel/cpuinfo.o
+  AR      arch/arm64/mm/built-in.o
+  CC      arch/arm64/kernel/cpu_errata.o
+  CC      arch/arm64/kernel/cpufeature.o
+  CC      arch/arm64/kernel/alternative.o
+  CC      arch/arm64/kernel/cacheinfo.o
+  CC      arch/arm64/kernel/smp.o
+  CC      arch/arm64/kernel/smp_spin_table.o
+  CC      arch/arm64/kernel/topology.o
+  AS      arch/arm64/kernel/smccc-call.o
+  CC      arch/arm64/kernel/sys32.o
+  AS      arch/arm64/kernel/kuser32.o
+  CC      arch/arm64/kernel/signal32.o
+  CC      arch/arm64/kernel/sys_compat.o
+  AS      arch/arm64/kernel/entry32.o
+  CC      arch/arm64/kernel/arm64ksyms.o
+  CC      arch/arm64/kernel/module.o
+  CC      arch/arm64/kernel/module-plts.o
+  CC      arch/arm64/kernel/perf_regs.o
+  CC      arch/arm64/kernel/perf_callchain.o
+  CC      arch/arm64/kernel/perf_event.o
+  CC      arch/arm64/kernel/hw_breakpoint.o
+  AS      arch/arm64/kernel/sleep.o
+  CC      arch/arm64/kernel/suspend.o
+  CC      arch/arm64/kernel/cpuidle.o
+  CC      arch/arm64/kernel/armv8_deprecated.o
+  CC      arch/arm64/kernel/kaslr.o
+  CC      arch/arm64/kernel/ssbd.o
+  CC      arch/arm64/kernel/bootinfo.o
+  CC      arch/arm64/kernel/hwconf_manager.o
+  CC      arch/arm64/kernel/probes/uprobes.o
+  OBJCOPY arch/arm64/kernel/vdso/vdso.so
+  AS      arch/arm64/kernel/vdso/vdso.o
+  AR      arch/arm64/kernel/vdso/built-in.o
+  CC      arch/arm64/kernel/probes/decode-insn.o
+  CC      arch/arm64/kernel/probes/simulate-insn.o
+  AS      arch/arm64/kernel/head.o
+  LDS     arch/arm64/kernel/vmlinux.lds
+  AR      arch/arm64/kernel/probes/built-in.o
+  AR      arch/arm64/kernel/built-in.o
+make[1]: Leaving directory '/home/runner/work/kernel-bpf/kernel-bpf/out'
+make: *** [Makefile:146: sub-make] Error 2
+[1;31m[FAIL][0m 编译失败
