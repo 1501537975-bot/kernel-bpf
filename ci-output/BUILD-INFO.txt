@@ -5,7 +5,7 @@ erofs:          yes
 bpf:            no
 uname_fake:     yes
 ksu:            no
-date:           2026-11-10T21:35:58Z
+date:           2026-11-10T22:52:25Z
 
 == 关键 config 项 ==
 CONFIG_EROFS_FS=y
@@ -14,7 +14,7 @@ CONFIG_BPF_SYSCALL=y
 CONFIG_DEBUG_INFO_BTF=n
 CONFIG_CGROUP_BPF=y
 CONFIG_CGROUP_FREEZER=y
-CONFIG_FHANDLE=y
+CONFIG_FHANDLE=n
 CONFIG_INDIRECT_FD=n
 CONFIG_MODULES=y
 CONFIG_MODVERSIONS=y
