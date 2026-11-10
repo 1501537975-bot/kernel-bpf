@@ -1,0 +1,159 @@
+name: Build cezanne kernel from community backport tree
+
+# 来源: mt6873-dev/android_kernel_xiaomi_mt6885 @ cgroup-v2
+# 4.14.336, cezanne 专用, 已内含 BPF backport / EROFS / fake uname。
+# 与 build.yml 的区别: 不再手工 apply mt6768 的补丁集, 直接用社区
+# 已经为 cezanne 适配好的完整内核树编译。
+
+on:
+  push:
+    paths:
+      - '.github/workflows/build-tree.yml'
+  workflow_dispatch:
+    inputs:
+      disable_ksu:
+        description: '禁用 KernelSU（submodule 未初始化时必须）'
+        type: boolean
+        default: true
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    permissions:
+      contents: write
+      actions: read
+
+    env:
+      TREE_REPO: mt6873-dev/android_kernel_xiaomi_mt6885
+      TREE_REF: cgroup-v2
+      DEFCONFIG: vendor/cezanne_user_defconfig
+
+    steps:
+      - name: Checkout community kernel tree
+        uses: actions/checkout@v4
+        with:
+          repository: mt6873-dev/android_kernel_xiaomi_mt6885
+          ref: cgroup-v2
+          path: kernel
+          fetch-depth: 1
+          submodules: false
+          lfs: false
+
+      - name: Checkout this build repo
+        uses: actions/checkout@v4
+        with:
+          path: buildrepo
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            bc bison flex build-essential ccache cpio \
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+            libelf-dev libssl-dev liblz4-tool lz4 zlib1g-dev \
+            python3 rsync dwarves || true
+          echo "=== toolchain ==="
+          aarch64-linux-gnu-gcc --version | head -1
+
+      - name: Inspect tree
+        run: |
+          cd kernel
+          echo "=== kernel version ==="
+          head -6 Makefile
+          echo "=== defconfig ==="
+          ls -l arch/arm64/configs/vendor/cezanne_user_defconfig
+          echo "=== key capability markers ==="
+          grep -c "sk_msg" net/core/filter.c || true
+          grep -n "5.4.186\|netbpfload" kernel/sys.c | head -3 || true
+          grep -c "erofs" fs/Kconfig || true
+
+      - name: Prepare defconfig (KSU stub + FHANDLE)
+        run: |
+          cd kernel
+          # drivers/Kconfig 里 source "drivers/kernelsu/Kconfig" 指向未初始化的
+          # submodule; 不注释掉会让 make *config 直接失败。
+          sed -i 's|^source "drivers/kernelsu/Kconfig"|# source "drivers/kernelsu/Kconfig"  # disabled: submodule not initialized|' drivers/Kconfig
+          grep -n "kernelsu" drivers/Kconfig || true
+
+          D=arch/arm64/configs/vendor/cezanne_user_defconfig
+          # 禁用 KSU, 打开 A16+ BPF 依赖的 FHANDLE, 去掉 Android 专用工具链前缀
+          sed -i 's|^CONFIG_KSU=y|# CONFIG_KSU is not set|' "$D"
+          sed -i 's|^# CONFIG_FHANDLE is not set|CONFIG_FHANDLE=y|' "$D"
+          if ! grep -q '^CONFIG_FHANDLE=y' "$D"; then echo 'CONFIG_FHANDLE=y' >> "$D"; fi
+          sed -i 's|^CONFIG_CROSS_COMPILE=.*|CONFIG_CROSS_COMPILE="aarch64-linux-gnu-"|' "$D"
+          echo "=== resulting config ==="
+          grep -E '^CONFIG_(KSU|FHANDLE|EROFS_FS|BPF_SYSCALL|CGROUP_BPF|CROSS_COMPILE)' "$D" || true
+
+      - name: Build kernel
+        run: |
+          set -o pipefail
+          cd kernel
+          export ARCH=arm64
+          export CROSS_COMPILE=aarch64-linux-gnu-
+          export O=out
+          mkdir -p "$O"
+          echo "=== defconfig ==="
+          make O="$O" "$DEFCONFIG" 2>&1 | tee ../buildrepo/defconfig.log
+          echo "=== ensure config ==="
+          scripts/config --file "$O/.config" --enable CONFIG_FHANDLE 2>/dev/null || true
+          scripts/config --file "$O/.config" --disable CONFIG_KSU 2>/dev/null || true
+          echo "=== compile ==="
+          make O="$O" -j"$(nproc)" 2>&1 | tee ../buildrepo/build-tree.log
+          echo "=== outputs ==="
+          ls -lh "$O/arch/arm64/boot/" | head -20
+          test -f "$O/arch/arm64/boot/Image.gz" || {
+            echo "::error::Image.gz 未生成"; exit 1; }
+
+      - name: Collect artifacts
+        if: always()
+        run: |
+          cd buildrepo
+          mkdir -p tree-output
+          if [ -f ../kernel/out/arch/arm64/boot/Image.gz ]; then
+            cp ../kernel/out/arch/arm64/boot/Image.gz tree-output/Image.gz
+          fi
+          if [ -f ../kernel/out/.config ]; then
+            cp ../kernel/out/.config tree-output/config.txt
+          fi
+          if [ -f ../kernel/out/include/generated/utsrelease.h ]; then
+            cat ../kernel/out/include/generated/utsrelease.h > tree-output/kernel-release.txt
+          fi
+          if [ -f ../kernel/out/System.map ]; then
+            cp ../kernel/out/System.map tree-output/System.map
+          fi
+          {
+            echo "source: $TREE_REPO @ $TREE_REF"
+            echo "defconfig: $DEFCONFIG"
+            echo "date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "sha: $(cd ../kernel && git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+          } > tree-output/BUILD-INFO.txt
+          echo "=== key config ==="
+          grep -E '^CONFIG_(EROFS_FS|BPF_SYSCALL|DEBUG_INFO_BTF|FHANDLE|MODVERSIONS|CGROUP_BPF|KSU)=' \
+            tree-output/config.txt 2>/dev/null || true
+          ls -lh tree-output/
+
+      - name: Publish outputs into repo
+        if: always()
+        run: |
+          cd buildrepo
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+          git add -f tree-output
+          if git diff --cached --quiet; then
+            echo "无产物需要提交"
+          else
+            git commit -m "ci: community tree kernel outputs [skip ci]"
+            git push origin HEAD:main || echo "push 失败; 产物仍可从 Actions 日志查看"
+          fi
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cezanne-community-tree-kernel
+          path: |
+            buildrepo/tree-output/*
+            buildrepo/build-tree.log
+          if-no-files-found: warn
+          retention-days: 30
