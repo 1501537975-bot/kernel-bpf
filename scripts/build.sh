@@ -522,6 +522,34 @@ fi
 
 ok "内核选项已设置 (MODVERSIONS/FHANDLE/EROFS/BPF/BTF/CGROUP)"
 
+# ⑥ 屏幕控制台 (诊断用, 默认关)
+#    原厂 cezanne_user_defconfig 里是 `# CONFIG_VT is not set`, 也就是**没有虚拟终端、
+#    没有 framebuffer console** -> 内核 panic 时屏幕上什么都看不到, 只能盲猜。
+#    打开 VT + fbcon 后, 只要在 boot.img 的 cmdline 里加 `console=tty0`,
+#    内核启动日志和 panic 栈就会直接打在手机屏幕上, 拍照即可取证。
+#    (DRM/fbdev 由 CONFIG_DRM_MEDIATEK + CONFIG_DRM_FBDEV_EMULATION 提供,
+#     面板驱动 CONFIG_DRM_PANEL_J10_38_08_0A_DSC_CMD 原厂 defconfig 里已有)
+if [ "${enable_fbcon:-0}" = "true" ] || [ "${enable_fbcon:-0}" = "1" ]; then
+  log "    打开屏幕控制台 (VT + framebuffer console)"
+  "$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" \
+    --enable CONFIG_VT \
+    --enable CONFIG_VT_CONSOLE \
+    --enable CONFIG_VT_HW_CONSOLE_BINDING \
+    --enable CONFIG_FRAMEBUFFER_CONSOLE \
+    --enable CONFIG_FRAMEBUFFER_CONSOLE_DETECT_PRIMARY \
+    --enable CONFIG_FRAMEBUFFER_CONSOLE_ROTATION \
+    --enable CONFIG_DRM_FBDEV_EMULATION \
+    --enable CONFIG_FONTS \
+    --enable CONFIG_FONT_8x16 \
+    --enable CONFIG_FONT_8x8 \
+    --enable CONFIG_LOGO
+  "$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" \
+    --set-val CONFIG_DRM_FBDEV_OVERALLOC 100 || true
+  ok "  屏幕控制台已打开 (记得在 cmdline 里加 console=tty0)"
+else
+  log "    跳过屏幕控制台 (enable_fbcon=${enable_fbcon:-未设置})"
+fi
+
 # ─────────────────────────────────────────────────────────────
 # ★★★ 强制对齐 kernel-release (最关键的一步, 必须在编译之前做)
 #

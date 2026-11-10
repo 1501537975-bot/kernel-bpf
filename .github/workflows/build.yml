@@ -19,6 +19,10 @@ on:
         description: '集成 KernelSU'
         type: boolean
         default: false
+      enable_fbcon:
+        description: '打开屏幕控制台 (VT + framebuffer console) —— 诊断用: 加 console=tty0 后内核日志与 panic 直接显示在手机屏幕上, 拍照即可取证 (原厂 defconfig 是 "# CONFIG_VT is not set")'
+        type: boolean
+        default: false
       localversion:
         description: '内核版本后缀（必须保持 -perf-00252-g2f26b5917fd6 才能加载原厂 vendor 模块）'
         type: string
@@ -173,6 +177,7 @@ jobs:
           enable_bpf: ${{ inputs.enable_bpf }}
           enable_uname: ${{ inputs.enable_uname }}
           enable_ksu: ${{ inputs.enable_ksu }}
+          enable_fbcon: ${{ inputs.enable_fbcon }}
           localversion: ${{ inputs.localversion }}
           # 注意: 必须用绝对路径。内核树 checkout 在 workspace 根 (kernel/),
           # 而 buildrepo/ 是本仓库 —— 两者是兄弟目录, 不是父子。
