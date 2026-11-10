@@ -129,6 +129,15 @@ def main():
     # 2) struct clone_args
     rel = "include/uapi/linux/sched.h"
     s = read(rel)
+    # 该 UAPI 头原本没有任何 #include, __u64 不可见; 按 UAPI 惯例补上。
+    # asm-offsets.s 会直接包含它, 缺类型会在 prepare0 阶段就编译失败。
+    if "#include <linux/types.h>" not in s:
+        guard = "#define _UAPI_LINUX_SCHED_H"
+        if guard in s:
+            s = s.replace(guard, guard + "\n\n#include <linux/types.h>", 1)
+        else:
+            s = "#include <linux/types.h>\n" + s
+        print("[ok] sched.h: 补 #include <linux/types.h>")
     if "struct clone_args" in s:
         print("[--] clone_args 已存在")
     else:
@@ -136,8 +145,8 @@ def main():
         if idx < 0:
             raise SystemExit("[FAIL] sched.h 找不到 #endif")
         s = s[:idx] + CLONE_ARGS + "\n" + s[idx:]
-        write(rel, s)
         print("[ok] sched.h: 注入 struct clone_args")
+    write(rel, s)
 
     # 3) SYSCALL_DEFINE2(clone3)
     rel = "kernel/fork.c"
@@ -145,7 +154,14 @@ def main():
     if "SYSCALL_DEFINE2(clone3" in s:
         print("[--] sys_clone3 实现已存在")
     else:
-        # 放在最后一个 SYSCALL_DEFINE5(clone...) 之后; 找不到就追加到文件末尾
+        # 显式包含 UAPI 头, 保证 struct clone_args / CSIGNAL 在展开时可见
+        if "#include <uapi/linux/sched.h>" not in s:
+            first = s.find("#include")
+            if first >= 0:
+                s = s[:first] + "#include <uapi/linux/sched.h>\n" + s[first:]
+            else:
+                s = "#include <uapi/linux/sched.h>\n" + s
+        # 放在 unshare 定义之前; 找不到就追加到文件末尾
         anchor = "SYSCALL_DEFINE1(unshare, unsigned long, unshare_flags)"
         if anchor in s:
             s = s.replace(anchor, CLONE3_IMPL + "\n" + anchor, 1)
