@@ -98,6 +98,9 @@ jobs:
           # 同一类问题还有「裸 inline 声明」(非 extern), 以及 mtk 老驱动
           # 的 subdir-ccflags-y += -Werror 把 GCC11 格式警告变成硬错误。
           python3 ../buildrepo/scripts/fix_legacy_gcc11.py . 2>&1 | tail -20
+          # ti_cezanne 充电驱动用 float ADC 系数 + kernel_neon, arm64 的
+          # -mgeneral-regs-only 会直接拒绝; 改成放大 1e6 的整数定点表。
+          python3 ../buildrepo/scripts/fix_float_driver.py . 2>&1 | tail -12
           echo "=== 修复后声明 ==="
           grep -n "ksm_flock\|blk_crypto_flock" \
             include/linux/keyslot-manager.h block/keyslot-manager.c \
