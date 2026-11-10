@@ -1,0 +1,24 @@
+# 编译信息
+kernel-release: 4.14.186-perf-00252-g2f26b5917fd6
+localversion:   -perf-00252-g2f26b5917fd6
+erofs:          yes
+bpf:            no
+uname_fake:     yes
+ksu:            no
+date:           2026-11-10T18:15:04Z
+
+== 关键 config 项 ==
+CONFIG_EROFS_FS=y
+CONFIG_EROFS_FS_XATTR=y
+CONFIG_BPF_SYSCALL=y
+CONFIG_DEBUG_INFO_BTF=n
+CONFIG_CGROUP_BPF=y
+CONFIG_CGROUP_FREEZER=y
+CONFIG_FHANDLE=y
+CONFIG_INDIRECT_FD=n
+CONFIG_MODULES=y
+CONFIG_MODVERSIONS=y
+CONFIG_LOCALVERSION=""
+CONFIG_LOCALVERSION_AUTO=n
+CONFIG_LOCALVERSION=""
+EROFS 生效: 1
