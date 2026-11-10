@@ -531,7 +531,13 @@ ok "内核选项已设置 (MODVERSIONS/FHANDLE/EROFS/BPF/BTF/CGROUP)"
 #     面板驱动 CONFIG_DRM_PANEL_J10_38_08_0A_DSC_CMD 原厂 defconfig 里已有)
 if [ "${enable_fbcon:-0}" = "true" ] || [ "${enable_fbcon:-0}" = "1" ]; then
   log "    打开屏幕控制台 (VT + framebuffer console)"
+  #   注意: CONFIG_FB 是硬前提 —— 原厂 defconfig 里根本没写 CONFIG_FB,
+  #   而 FRAMEBUFFER_CONSOLE / DRM_FBDEV_EMULATION 都 depends on FB,
+  #   不打开 FB 的话这两个符号会被 Kconfig 静默丢掉, 屏幕上照样什么都没有。
   "$KERNEL_DIR/scripts/config" --file "$OUT_ABS/.config" \
+    --enable CONFIG_FB \
+    --enable CONFIG_FB_CMDLINE \
+    --enable CONFIG_DUMMY_CONSOLE \
     --enable CONFIG_VT \
     --enable CONFIG_VT_CONSOLE \
     --enable CONFIG_VT_HW_CONSOLE_BINDING \
