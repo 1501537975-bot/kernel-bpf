@@ -4,10 +4,9 @@ on:
   # push 触发时 inputs 为空, build.sh 会走内部默认
   # (erofs=yes / bpf=yes / uname=yes / ksu=no / 原厂 localversion),
   # 正好是 A16/A17 需要的组合; 并且让产物能回写到仓库便于取用。
-  push:
-    paths:
-      - '.github/workflows/build.yml'
-      - 'scripts/**'
+  # 2026-11-11: 关闭 push 触发。scripts/** 的改动会同时触发本 workflow
+  # 与 build-tree.yml，两者都往 main 回写产物，造成 push 竞态、日志丢失。
+  # 本流水线保留手动 workflow_dispatch；日常编译走 build-tree.yml。
   workflow_dispatch:
     inputs:
       enable_erofs:

@@ -27,13 +27,11 @@ INLINE_PAIRS = [
     ("include/linux/blk-crypto.h", "block/blk-crypto.c", "blk_crypto_flock"),
 ]
 
-WERROR_MAKEFILES = [
-    "drivers/media/platform/mtk-vcu/Makefile",
-    "drivers/media/platform/mtk-vcodec/Makefile",
-    "drivers/media/platform/mtk-vpu/Makefile",
-    "drivers/media/platform/mtk-mdp/Makefile",
-    "drivers/media/platform/mtk-isp/Makefile",
-]
+# 不再用固定清单: MTK 老驱动里带 -Werror 的 Makefile 分布在
+# drivers/media / drivers/gpu / sound/soc 等多处, 逐个列会漏。
+# 改为全树扫描所有 Makefile 的 ccflags 行。
+WERROR_LINE = re.compile(
+    r"^(\s*(?:subdir-)?ccflags-y\s*\+=\s*)(.*)$", re.M)
 
 
 def strip_inline(path, func):
@@ -67,19 +65,30 @@ def main():
     print("[inline] 共修正 %d 处" % n1)
 
     n2 = 0
-    for rel in WERROR_MAKEFILES:
-        p = os.path.join(ROOT, rel)
-        if not os.path.isfile(p):
+    for dirpath, dirnames, filenames in os.walk(ROOT):
+        dirnames[:] = [d for d in dirnames if d not in (".git", "out", "Documentation")]
+        if "Makefile" not in filenames:
+            continue
+        p = os.path.join(dirpath, "Makefile")
+        # 跳过内核顶层 Makefile: 那里的 -Werror-implicit-* 是有意保留的
+        if os.path.abspath(p) == os.path.abspath(os.path.join(ROOT, "Makefile")):
             continue
         with open(p, "r", encoding="utf-8", errors="surrogateescape") as f:
             s = f.read()
-        s2 = re.sub(r"^(\s*subdir-ccflags-y\s*\+=\s*)-Werror\s*$",
-                    r"\1-Wno-error", s, flags=re.M)
+
+        def fix_line(m):
+            flags = m.group(2)
+            new = re.sub(r"(?<![\w-])-Werror(?=[\s=]|$)", "-Wno-error", flags)
+            return m.group(1) + new
+
+        s2 = WERROR_LINE.sub(fix_line, s)
         if s2 != s:
             with open(p, "w", encoding="utf-8", errors="surrogateescape") as f:
                 f.write(s2)
             n2 += 1
-            print("[ok] -Werror -> -Wno-error: %s" % rel)
+            rel = os.path.relpath(p, ROOT)
+            if n2 <= 25:
+                print("[ok] ccflags -Werror -> -Wno-error: %s" % rel)
     print("[Werror] 共修正 %d 个 Makefile" % n2)
     return 0
 
